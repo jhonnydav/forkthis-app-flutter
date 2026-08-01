@@ -113,6 +113,57 @@ missing safe-area insets. Only a rendered screenshot catches those.**
 
 ---
 
+## 2026-08-01 (2) — onboarding redesign + animations
+
+Redesigned the full onboarding flow (`lib/screens/onboarding/onboarding_screen.dart`,
+909 lines) — Welcome, 3 intro slides, the 5-question questionnaire, and the loading
+screen. The user asked for "Framer Motion and Lenis"-quality animation; those are
+JS-only libraries with no Flutter equivalent, so this uses Flutter's own animation
+system to the same end (confirmed with the user before starting — scope is the
+Flutter app, not the web prototype).
+
+**The load-bearing fix**: every one of the 9 onboarding sub-steps used to build its
+own `AppShell`/`Scaffold`, and `go_router` rebuilds the same `/onboarding` route in
+place rather than pushing a new one — so no page-transition animation ever fired,
+full stop, regardless of what was added. Fixed by hoisting a single `AppShell` to
+`OnboardingScreen` and wrapping the step content in `AnimatedSwitcher`, keyed on the
+numeric step (`KeyedSubtree(key: ValueKey(step))`) so it fires even between two
+steps of the same widget type (e.g. intro slide 1→2, which share `_IntroContent`).
+
+**New dependency**: [`flutter_animate`](https://pub.dev/packages/flutter_animate)
+`^4.5.2` — declarative `.animate().fadeIn().slideY()` chains for staggered entrance
+animations, added specifically for this redesign.
+
+**What's animated**: step-to-step transitions (fade + slide, 340ms); staggered
+entrance of each step's title/body/CTA; a large tinted `HugeIcon` glyph added to
+Welcome and each intro slide (previously pure text — the app's icon-forward language
+carried into a flow that had none); press-scale + animated checkmark on selectable
+cards (`_GoalOption`, `_SelectOption`, driven off `InkWell.onHighlightChanged`, not a
+second gesture recognizer, so it can't compete with the tap itself); animated
+progress-segment fill; animated crossfade between the imperial/metric stat inputs.
+The loading-plan ring, percentage, and status-dot states are all derived from **one**
+`TweenAnimationBuilder<double>` (0→0.85 over the same 2200ms as the
+`Future.delayed` that navigates to `/home`) rather than a separate
+`AnimationController` — deliberately, so the ring, the count-up text, and the dots
+can never drift out of sync, and there is no controller to remember to `dispose()`.
+
+**Token-hygiene fix found along the way**: several onboarding widgets used bare
+`TextStyle(fontSize: ..., fontWeight: ...)` instead of `AppText.*`, which meant they
+silently lost Satoshi's letter-spacing when the font was swapped in an earlier pass
+that never touched this file. All given the same `-0.2` tracking the rest of the app
+uses at this size. Also swapped `Colors.white` for `AppColors.card` (identical
+value, `0xFFFFFFFF`) for consistency with the rest of the app's token usage.
+
+**Verified**: `flutter analyze` clean throughout. On-device, walked Welcome → all 3
+intro slides → Age → Goal (including tapping between goal cards to confirm the
+selection/checkmark animation) → Stats, all rendering correctly with no exceptions.
+The loading screen's `TweenAnimationBuilder` + delayed navigation completes cleanly
+(landed on Home with no crash). Did not walk Surgical/Activity individually — both
+reuse `_SelectOption`/`_QuestionFrameContent`, already verified elsewhere in the same
+session.
+
+---
+
 ## 2026-08-01 redesign — nav, icons, font, three screens, prod-readiness pass
 
 Five changes landed together, verified in this order (font/nav → icons → screen

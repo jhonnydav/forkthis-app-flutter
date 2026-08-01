@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,12 @@ import '../../widgets/product_sheet.dart';
 /// their meaning match the web app's `?step=N` exactly:
 ///   0 welcome · 1-3 intro slides · 4 age gate (DOB) · 5 goal · 6 body stats
 ///   7 surgical context · 8 activity · 9 loading plan → auto-advance to /home
+///
+/// Redesigned 2026-08-01: one `AppShell`/`Scaffold` for the whole flow (each step
+/// used to wrap its own, which meant no navigation transition ever fired — go_router
+/// rebuilds the same `/onboarding` route in place, it doesn't push a new one). Steps
+/// now cross-fade+slide via `AnimatedSwitcher`, keyed on the numeric step so it fires
+/// even between two steps of the same widget type (e.g. intro slide 1→2).
 class OnboardingScreen extends StatefulWidget {
   final int step;
   const OnboardingScreen({super.key, required this.step});
@@ -44,17 +51,48 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void go(int next) => context.go('/onboarding?step=$next');
 
-  @override
-  Widget build(BuildContext context) {
-    final step = widget.step.clamp(0, 9);
-    if (step == 0) return _Welcome(onNext: () => go(1));
-    if (step >= 1 && step <= 3) return _Intro(index: step - 1, onNext: () => go(step + 1));
+  Widget _stepContent(int step) {
+    if (step == 0) return _WelcomeContent(onNext: () => go(1));
+    if (step >= 1 && step <= 3) return _IntroContent(index: step - 1, onNext: () => go(step + 1));
     if (step == 4) return _AgeStep(state: this);
     if (step == 5) return _GoalStep(state: this);
     if (step == 6) return _StatsStep(state: this);
     if (step == 7) return _SurgicalStep(state: this);
     if (step == 8) return _ActivityStep(state: this);
-    return const _LoadingPlan();
+    return const _LoadingPlanContent();
+  }
+
+  static Widget _stepTransition(Widget child, Animation<double> animation) {
+    final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+    return FadeTransition(
+      opacity: animation,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0.04, 0), end: Offset.zero).animate(curved),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final step = widget.step.clamp(0, 9);
+    return AppShell(
+      tabBar: false,
+      child: Column(
+        children: [
+          const _StatusBar(),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 340),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: _stepTransition,
+              child: KeyedSubtree(key: ValueKey(step), child: _stepContent(step)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -66,6 +104,8 @@ class _StatusBar extends StatelessWidget {
   }
 }
 
+/// Segmented step indicator. Each segment's fill smoothly crossfades rather than
+/// snapping, so advancing a step reads as progress rather than a hard cut.
 class _Progress extends StatelessWidget {
   final int current;
   final int total;
@@ -80,10 +120,14 @@ class _Progress extends StatelessWidget {
           return Expanded(
             child: Container(
               margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
-              height: 6,
-              decoration: BoxDecoration(
-                color: i < current ? AppColors.primary : AppColors.secondary,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOut,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: i < current ? AppColors.primary : AppColors.secondary,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
               ),
             ),
           );
@@ -100,13 +144,17 @@ class _PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 56,
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
-        child: Text(label),
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: onPressed == null ? 0.55 : 1,
+      child: SizedBox(
+        height: 56,
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+          child: Text(label),
+        ),
       ),
     );
   }
@@ -118,66 +166,93 @@ const _introSteps = [
     title: 'Eat smart, anywhere.',
     body: 'Real life happens. We show you exactly what to order at your favorite restaurants to stay entirely on track, completely guilt-free.',
     accent: true,
+    icon: HugeIcons.strokeRoundedRestaurant01,
   ),
   (
     badge: 'Tailored to you',
     title: 'Personalized to your context.',
     body: 'No cookie-cutter templates. Your nutritional plans adapt to your unique body stats, goals, and specific medical or surgical context.',
     accent: false,
+    icon: HugeIcons.strokeRoundedTarget01,
   ),
   (
     badge: 'Built by people who get it',
     title: 'Clinical depth, real empathy.',
     body: 'Co-founded by a renowned plastic surgeon and a weight health creator who lived the 260 lb loss journey. Pure support, zero intimidation.',
     accent: true,
+    icon: HugeIcons.strokeRoundedFavourite,
   ),
 ];
 
-class _Welcome extends StatelessWidget {
-  final VoidCallback onNext;
-  const _Welcome({required this.onNext});
+/// A single large tinted glyph behind the copy — the app's icon-forward language
+/// (already used on Home/Cook/Track/You) carried into onboarding without inventing
+/// new photography or illustration for a flow that previously had none at all.
+class _HeroGlyph extends StatelessWidget {
+  final List<List<dynamic>> icon;
+  final Color tint;
+  const _HeroGlyph({required this.icon, required this.tint});
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      tabBar: false,
+    return Container(
+      width: 84,
+      height: 84,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(AppRadius.xxl)),
+      child: HugeIcon(icon: icon, size: 38, color: AppColors.primary),
+    );
+  }
+}
+
+class _WelcomeContent extends StatelessWidget {
+  final VoidCallback onNext;
+  const _WelcomeContent({required this.onNext});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _StatusBar(),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 350),
-                    child: Text('Your turning point starts here.', style: AppText.h1(color: AppColors.primary)),
-                  ),
-                  const SizedBox(height: 16),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 350),
-                    child: Text(
-                      'A warmer, scientifically credible home for sustainable weight health. No paywalls, no judgment.',
-                      style: AppText.bodySm(color: AppColors.mutedForeground),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _PillButton(label: 'Get Started', onPressed: onNext),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 56,
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _showSignIn(context),
-                      child: const Text('I already have an account'),
-                    ),
-                  ),
-                ],
-              ),
+          const _HeroGlyph(icon: HugeIcons.strokeRoundedFavourite, tint: AppColors.accent)
+              .animate()
+              .fadeIn(duration: 420.ms, curve: Curves.easeOut)
+              .slideY(begin: 0.15, end: 0, duration: 420.ms, curve: Curves.easeOutCubic),
+          const SizedBox(height: 20),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 350),
+            child: Text('Your turning point starts here.', style: AppText.h1(color: AppColors.primary)),
+          )
+              .animate()
+              .fadeIn(delay: 80.ms, duration: 420.ms, curve: Curves.easeOut)
+              .slideY(begin: 0.12, end: 0, delay: 80.ms, duration: 420.ms, curve: Curves.easeOutCubic),
+          const SizedBox(height: 16),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 350),
+            child: Text(
+              'A warmer, scientifically credible home for sustainable weight health. No paywalls, no judgment.',
+              style: AppText.bodySm(color: AppColors.mutedForeground),
             ),
-          ),
+          )
+              .animate()
+              .fadeIn(delay: 150.ms, duration: 420.ms, curve: Curves.easeOut)
+              .slideY(begin: 0.12, end: 0, delay: 150.ms, duration: 420.ms, curve: Curves.easeOutCubic),
+          const SizedBox(height: 24),
+          _PillButton(label: 'Get Started', onPressed: onNext)
+              .animate()
+              .fadeIn(delay: 230.ms, duration: 380.ms)
+              .slideY(begin: 0.1, end: 0, delay: 230.ms, duration: 380.ms, curve: Curves.easeOutCubic),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => _showSignIn(context),
+              child: const Text('I already have an account'),
+            ),
+          ).animate().fadeIn(delay: 290.ms, duration: 380.ms),
         ],
       ),
     );
@@ -198,7 +273,7 @@ class _Welcome extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Email', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text('Email', style: AppText.label()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: email,
@@ -206,7 +281,7 @@ class _Welcome extends StatelessWidget {
                 validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
               ),
               const SizedBox(height: 16),
-              const Text('Password', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text('Password', style: AppText.label()),
               const SizedBox(height: 8),
               TextFormField(
                 controller: password,
@@ -238,53 +313,61 @@ class _Welcome extends StatelessWidget {
   }
 }
 
-class _Intro extends StatelessWidget {
+class _IntroContent extends StatelessWidget {
   final int index;
   final VoidCallback onNext;
-  const _Intro({required this.index, required this.onNext});
+  const _IntroContent({required this.index, required this.onNext});
 
   @override
   Widget build(BuildContext context) {
     final item = _introSteps[index];
-    return AppShell(
-      tabBar: false,
-      child: Column(
-        children: [
-          const _StatusBar(),
-          _Progress(current: index + 1, total: 3),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: item.accent ? AppColors.accent : AppColors.secondary,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
-                    ),
-                    child: Text(item.badge.toUpperCase(),
-                        style: AppText.caption(color: AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
+    return Column(
+      children: [
+        _Progress(current: index + 1, total: 3),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _HeroGlyph(icon: item.icon, tint: item.accent ? AppColors.accent : AppColors.secondary)
+                    .animate(key: ValueKey('glyph$index'))
+                    .fadeIn(duration: 380.ms, curve: Curves.easeOut)
+                    .slideY(begin: 0.15, end: 0, duration: 380.ms, curve: Curves.easeOutCubic),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: item.accent ? AppColors.accent : AppColors.secondary,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
-                  const SizedBox(height: 12),
-                  Text(item.title, style: AppText.h1(color: AppColors.primary)),
-                  const SizedBox(height: 12),
-                  Text(item.body, style: AppText.bodySm(color: AppColors.mutedForeground)),
-                  const SizedBox(height: 24),
-                  _PillButton(label: index == 2 ? "Let's Begin" : 'Next', onPressed: onNext),
-                ],
-              ),
+                  child: Text(item.badge.toUpperCase(),
+                      style: AppText.caption(color: AppColors.primary).copyWith(fontWeight: FontWeight.w700)),
+                ).animate(key: ValueKey('badge$index')).fadeIn(delay: 60.ms, duration: 340.ms),
+                const SizedBox(height: 12),
+                Text(item.title, style: AppText.h1(color: AppColors.primary))
+                    .animate(key: ValueKey('title$index'))
+                    .fadeIn(delay: 110.ms, duration: 340.ms)
+                    .slideY(begin: 0.1, end: 0, delay: 110.ms, duration: 340.ms, curve: Curves.easeOutCubic),
+                const SizedBox(height: 12),
+                Text(item.body, style: AppText.bodySm(color: AppColors.mutedForeground))
+                    .animate(key: ValueKey('body$index'))
+                    .fadeIn(delay: 160.ms, duration: 340.ms),
+                const SizedBox(height: 24),
+                _PillButton(label: index == 2 ? "Let's Begin" : 'Next', onPressed: onNext)
+                    .animate(key: ValueKey('cta$index'))
+                    .fadeIn(delay: 220.ms, duration: 340.ms),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _QuestionFrame extends StatelessWidget {
+class _QuestionFrameContent extends StatelessWidget {
   final int step;
   final String title;
   final String? description;
@@ -293,7 +376,7 @@ class _QuestionFrame extends StatelessWidget {
   final String actionLabel;
   final bool compact;
 
-  const _QuestionFrame({
+  const _QuestionFrameContent({
     required this.step,
     required this.title,
     this.description,
@@ -305,93 +388,120 @@ class _QuestionFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      tabBar: false,
-      child: Column(
-        children: [
-          const _StatusBar(),
-          _Progress(current: step, total: 5),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(24, compact ? 16 : 24, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Questionnaire $step of 5',
-                      style: AppText.bodySm(color: AppColors.questionnaireLabel).copyWith(fontWeight: FontWeight.w700)),
+    return Column(
+      children: [
+        _Progress(current: step, total: 5),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24, compact ? 16 : 24, 24, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Questionnaire $step of 5',
+                        style: AppText.bodySm(color: AppColors.questionnaireLabel).copyWith(fontWeight: FontWeight.w700))
+                    .animate(key: ValueKey('label$step'))
+                    .fadeIn(duration: 300.ms),
+                const SizedBox(height: 8),
+                Text(title, style: AppText.h1(color: AppColors.primary))
+                    .animate(key: ValueKey('title$step'))
+                    .fadeIn(delay: 40.ms, duration: 320.ms)
+                    .slideY(begin: 0.08, end: 0, delay: 40.ms, duration: 320.ms, curve: Curves.easeOutCubic),
+                if (description != null) ...[
                   const SizedBox(height: 8),
-                  Text(title, style: AppText.h1(color: AppColors.primary)),
-                  if (description != null) ...[
-                    const SizedBox(height: 8),
-                    Text(description!, style: AppText.body(color: AppColors.mutedForeground)),
-                  ],
-                  SizedBox(height: compact ? 16 : 24),
-                  child,
-                  SizedBox(height: compact ? 16 : 24),
-                  _PillButton(label: actionLabel, onPressed: onAction),
+                  Text(description!, style: AppText.body(color: AppColors.mutedForeground))
+                      .animate(key: ValueKey('desc$step'))
+                      .fadeIn(delay: 90.ms, duration: 320.ms),
                 ],
-              ),
+                SizedBox(height: compact ? 16 : 24),
+                child.animate(key: ValueKey('body$step')).fadeIn(delay: 140.ms, duration: 320.ms),
+                SizedBox(height: compact ? 16 : 24),
+                _PillButton(label: actionLabel, onPressed: onAction),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _GoalOption extends StatelessWidget {
-  final String value;
+/// Selectable card with a subtle press-scale — pure UI feedback, no gesture
+/// recognizer competes with `InkWell`'s own since the scale is driven off
+/// `InkWell.onHighlightChanged` rather than a second tap detector.
+class _GoalOption extends StatefulWidget {
   final String title;
   final String body;
   final List<List<dynamic>> icon;
   final bool selected;
   final VoidCallback onTap;
-  const _GoalOption({required this.value, required this.title, required this.body, required this.icon, required this.selected, required this.onTap});
+  const _GoalOption({required this.title, required this.body, required this.icon, required this.selected, required this.onTap});
+
+  @override
+  State<_GoalOption> createState() => _GoalOptionState();
+}
+
+class _GoalOptionState extends State<_GoalOption> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 107),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: selected ? 2 : 1),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: selected ? AppColors.accent : AppColors.background,
-                borderRadius: BorderRadius.circular(AppRadius.xl),
+    return AnimatedScale(
+      scale: _pressed ? 0.97 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: widget.onTap,
+        onHighlightChanged: (v) => setState(() => _pressed = v),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          constraints: const BoxConstraints(minHeight: 107),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: widget.selected ? AppColors.primary : AppColors.border, width: widget.selected ? 2 : 1),
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: widget.selected ? AppColors.accent : AppColors.background,
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                ),
+                child: HugeIcon(icon: widget.icon, color: AppColors.primary),
               ),
-              child: HugeIcon(icon: icon, color: AppColors.primary),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
-                  const SizedBox(height: 4),
-                  Text(body, style: AppText.bodySm(color: AppColors.mutedForeground)),
-                ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2)),
+                    const SizedBox(height: 4),
+                    Text(widget.body, style: AppText.bodySm(color: AppColors.mutedForeground)),
+                  ],
+                ),
               ),
-            ),
-          ],
+              AnimatedScale(
+                scale: widget.selected ? 1 : 0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutBack,
+                child: const HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle01, size: 22, color: AppColors.primary),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _SelectOption extends StatelessWidget {
+class _SelectOption extends StatefulWidget {
   final String title;
   final String body;
   final bool selected;
@@ -400,42 +510,62 @@ class _SelectOption extends StatelessWidget {
   const _SelectOption({required this.title, required this.body, required this.selected, required this.onTap, this.compact = false});
 
   @override
+  State<_SelectOption> createState() => _SelectOptionState();
+}
+
+class _SelectOptionState extends State<_SelectOption> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.xxl),
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        constraints: BoxConstraints(minHeight: compact ? 66 : 74),
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: compact ? 12 : 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: selected ? 2 : 1),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(body, style: AppText.caption()),
-                ],
+    return AnimatedScale(
+      scale: _pressed ? 0.98 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOut,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        onTap: widget.onTap,
+        onHighlightChanged: (v) => setState(() => _pressed = v),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          constraints: BoxConstraints(minHeight: widget.compact ? 66 : 74),
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: widget.compact ? 12 : 16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            border: Border.all(color: widget.selected ? AppColors.primary : AppColors.border, width: widget.selected ? 2 : 1),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -0.2)),
+                    const SizedBox(height: 2),
+                    Text(widget.body, style: AppText.caption()),
+                  ],
+                ),
               ),
-            ),
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: 2),
-                color: selected ? AppColors.primary : Colors.transparent,
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: widget.selected ? AppColors.primary : AppColors.border, width: 2),
+                  color: widget.selected ? AppColors.primary : Colors.transparent,
+                ),
+                child: AnimatedScale(
+                  scale: widget.selected ? 1 : 0,
+                  duration: const Duration(milliseconds: 160),
+                  curve: Curves.easeOutBack,
+                  child: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 14, color: Colors.white),
+                ),
               ),
-              child: selected ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 14, color: Colors.white) : null,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -455,7 +585,7 @@ class _AgeStepState extends State<_AgeStep> {
     final s = widget.state;
     final valid = s.age >= 13 && s.age <= 120;
     final formatted = '${_month(s.birthDate.month)} ${s.birthDate.day}, ${s.birthDate.year}';
-    return _QuestionFrame(
+    return _QuestionFrameContent(
       step: 1,
       title: 'How old are you?',
       description: 'To provide personalized clinical insights, we need to verify your age. You must be 13 or older.',
@@ -479,16 +609,16 @@ class _AgeStepState extends State<_AgeStep> {
               height: 64,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card,
                 borderRadius: BorderRadius.circular(AppRadius.xxl),
                 border: Border.all(color: AppColors.border, width: 1.5),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Date of Birth', style: TextStyle(fontSize: 18, color: AppColors.primary)),
+                  const Text('Date of Birth', style: TextStyle(fontSize: 18, color: AppColors.primary, letterSpacing: -0.2)),
                   Row(children: [
-                    Text(formatted, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                    Text(formatted, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2)),
                     const SizedBox(width: 8),
                     const HugeIcon(icon: HugeIcons.strokeRoundedArrowDown01, size: 18, color: AppColors.primary),
                   ]),
@@ -497,17 +627,21 @@ class _AgeStepState extends State<_AgeStep> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              HugeIcon(icon: HugeIcons.strokeRoundedShield01, size: 16, color: valid ? AppColors.primary : AppColors.destructive),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  valid ? 'Verified (${s.age} years old) · Over 13+ requirement' : 'You must be between 13 and 120 years old.',
-                  style: AppText.bodySm(color: valid ? AppColors.mutedForeground : AppColors.destructive),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Row(
+              key: ValueKey(valid),
+              children: [
+                HugeIcon(icon: HugeIcons.strokeRoundedShield01, size: 16, color: valid ? AppColors.primary : AppColors.destructive),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    valid ? 'Verified (${s.age} years old) · Over 13+ requirement' : 'You must be between 13 and 120 years old.',
+                    style: AppText.bodySm(color: valid ? AppColors.mutedForeground : AppColors.destructive),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -528,13 +662,12 @@ class _GoalStepState extends State<_GoalStep> {
   @override
   Widget build(BuildContext context) {
     final s = widget.state;
-    return _QuestionFrame(
+    return _QuestionFrameContent(
       step: 2,
       title: "What's your main goal?",
       onAction: () => s.go(6),
       child: Column(children: [
         _GoalOption(
-          value: 'lose',
           title: 'Lose weight',
           body: 'Sustainable fat loss with muscle preservation',
           icon: HugeIcons.strokeRoundedArrowDownRight01,
@@ -543,7 +676,6 @@ class _GoalStepState extends State<_GoalStep> {
         ),
         const SizedBox(height: 12),
         _GoalOption(
-          value: 'gain',
           title: 'Gain muscle',
           body: 'Build physical strength and energetic support',
           icon: HugeIcons.strokeRoundedDumbbell01,
@@ -552,7 +684,6 @@ class _GoalStepState extends State<_GoalStep> {
         ),
         const SizedBox(height: 12),
         _GoalOption(
-          value: 'maintain',
           title: 'Maintain weight',
           body: 'Focus on longevity, metabolism and vitality',
           icon: HugeIcons.strokeRoundedFavourite,
@@ -585,7 +716,7 @@ class _StatsStepState extends State<_StatsStep> {
         (double.tryParse(s.weightKg.text) ?? 0) >= 23;
     final valid = s.units == 'imperial' ? imperialValid : metricValid;
 
-    return _QuestionFrame(
+    return _QuestionFrameContent(
       step: 3,
       title: 'What are your stats?',
       onAction: valid ? () => s.go(7) : null,
@@ -602,25 +733,36 @@ class _StatsStepState extends State<_StatsStep> {
             ]),
           ),
           const SizedBox(height: 24),
-          if (s.units == 'imperial') ...[
-            const Text('Height', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: _UnitInput(controller: s.feet, unit: 'ft', onChanged: (_) => setState(() {}))),
-              const SizedBox(width: 12),
-              Expanded(child: _UnitInput(controller: s.inches, unit: 'in', onChanged: (_) => setState(() {}))),
-            ]),
-            const SizedBox(height: 16),
-            const Text('Weight', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
-            const SizedBox(height: 8),
-            _UnitInput(controller: s.weightLb, unit: 'lbs', onChanged: (_) => setState(() {})),
-          ] else ...[
-            Row(children: [
-              Expanded(child: _UnitInput(controller: s.heightCm, unit: 'cm', onChanged: (_) => setState(() {}))),
-              const SizedBox(width: 12),
-              Expanded(child: _UnitInput(controller: s.weightKg, unit: 'kg', onChanged: (_) => setState(() {}))),
-            ]),
-          ],
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 240),
+            transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+            child: s.units == 'imperial'
+                ? Column(
+                    key: const ValueKey('imperial'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Height', style: AppText.label(color: AppColors.primary)),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        Expanded(child: _UnitInput(controller: s.feet, unit: 'ft', onChanged: (_) => setState(() {}))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _UnitInput(controller: s.inches, unit: 'in', onChanged: (_) => setState(() {}))),
+                      ]),
+                      const SizedBox(height: 16),
+                      Text('Weight', style: AppText.label(color: AppColors.primary)),
+                      const SizedBox(height: 8),
+                      _UnitInput(controller: s.weightLb, unit: 'lbs', onChanged: (_) => setState(() {})),
+                    ],
+                  )
+                : Row(
+                    key: const ValueKey('metric'),
+                    children: [
+                      Expanded(child: _UnitInput(controller: s.heightCm, unit: 'cm', onChanged: (_) => setState(() {}))),
+                      const SizedBox(width: 12),
+                      Expanded(child: _UnitInput(controller: s.weightKg, unit: 'kg', onChanged: (_) => setState(() {}))),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
@@ -638,10 +780,12 @@ class _UnitToggle extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadius.lg),
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.transparent,
+          color: active ? AppColors.card : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: Text(label, style: AppText.bodySm(color: active ? AppColors.blueberry : AppColors.mutedForeground)),
@@ -662,7 +806,7 @@ class _UnitInput extends StatelessWidget {
       controller: controller,
       onChanged: onChanged,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.primary, letterSpacing: -0.2),
       decoration: InputDecoration(
         suffixText: unit,
         suffixStyle: AppText.bodySm(color: AppColors.mutedForeground),
@@ -682,7 +826,7 @@ class _SurgicalStepState extends State<_SurgicalStep> {
   @override
   Widget build(BuildContext context) {
     final s = widget.state;
-    return _QuestionFrame(
+    return _QuestionFrameContent(
       step: 4,
       title: 'Any surgical context?',
       description: 'Our clinical founder co-designed this platform to ensure safe nutritional support before or after surgical weight-loss procedures.',
@@ -728,7 +872,7 @@ class _ActivityStepState extends State<_ActivityStep> {
   @override
   Widget build(BuildContext context) {
     final s = widget.state;
-    return _QuestionFrame(
+    return _QuestionFrameContent(
       step: 5,
       title: 'How active are you right now?',
       description: "This establishes your metabolic baseline so we don't under-nourish your recovery.",
@@ -754,48 +898,67 @@ class _ActivityStepState extends State<_ActivityStep> {
   }
 }
 
-class _LoadingPlan extends StatefulWidget {
-  const _LoadingPlan();
+const _planDuration = Duration(milliseconds: 2200);
+const _planTarget = 0.85;
+
+/// The ring, percentage, and status dots are all driven off ONE `TweenAnimationBuilder`
+/// value rather than independent timers/controllers — deliberately, so nothing can
+/// drift out of sync and there is no `AnimationController` to forget to dispose (the
+/// widget also navigates itself away via `Future.delayed` on the same duration).
+class _LoadingPlanContent extends StatefulWidget {
+  const _LoadingPlanContent();
   @override
-  State<_LoadingPlan> createState() => _LoadingPlanState();
+  State<_LoadingPlanContent> createState() => _LoadingPlanContentState();
 }
 
-class _LoadingPlanState extends State<_LoadingPlan> {
+class _LoadingPlanContentState extends State<_LoadingPlanContent> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 2200), () {
+    Future.delayed(_planDuration, () {
       if (mounted) context.go('/home');
     });
   }
 
-  static const _statuses = [
-    ('Analyzing metabolic baseline', 'done'),
-    ('Mapping restaurant swaps & hacks', 'done'),
-    ('Curating high-protein recipes', 'active'),
-    ('Structuring recovery metrics', 'waiting'),
+  static const _statusLabels = [
+    'Analyzing metabolic baseline',
+    'Mapping restaurant swaps & hacks',
+    'Curating high-protein recipes',
+    'Structuring recovery metrics',
   ];
+
+  String _statusFor(int index, double value) {
+    final thresholds = List.generate(_statusLabels.length, (i) => _planTarget * (i + 1) / _statusLabels.length);
+    if (value >= thresholds[index]) return 'done';
+    final activeIndex = thresholds.indexWhere((t) => value < t);
+    return activeIndex == index ? 'active' : 'waiting';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      tabBar: false,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
       child: Column(
         children: [
-          const _StatusBar(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
-              child: Column(
+          Text('Building your plan…', textAlign: TextAlign.center, style: AppText.h1(color: AppColors.primary))
+              .animate()
+              .fadeIn(duration: 380.ms)
+              .slideY(begin: 0.1, end: 0, duration: 380.ms, curve: Curves.easeOutCubic),
+          const SizedBox(height: 12),
+          Text(
+            "We're personalizing everything based on your goals, baseline, and dining preferences.",
+            textAlign: TextAlign.center,
+            style: AppText.bodySm(color: AppColors.mutedForeground),
+          ).animate().fadeIn(delay: 80.ms, duration: 380.ms),
+          const SizedBox(height: 40),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: _planTarget),
+            duration: _planDuration,
+            curve: Curves.easeOutCubic,
+            builder: (context, value, _) {
+              final percent = (value * 100).round();
+              return Column(
                 children: [
-                  Text('Building your plan…', textAlign: TextAlign.center, style: AppText.h1(color: AppColors.primary)),
-                  const SizedBox(height: 12),
-                  Text(
-                    "We're personalizing everything based on your goals, baseline, and dining preferences.",
-                    textAlign: TextAlign.center,
-                    style: AppText.bodySm(color: AppColors.mutedForeground),
-                  ),
-                  const SizedBox(height: 40),
                   Stack(
                     alignment: Alignment.center,
                     children: [
@@ -803,7 +966,7 @@ class _LoadingPlanState extends State<_LoadingPlan> {
                         width: 224,
                         height: 224,
                         child: CircularProgressIndicator(
-                          value: 0.85,
+                          value: value,
                           strokeWidth: 12,
                           backgroundColor: AppColors.secondary,
                           valueColor: const AlwaysStoppedAnimation(AppColors.primary),
@@ -813,8 +976,8 @@ class _LoadingPlanState extends State<_LoadingPlan> {
                         width: 160,
                         height: 160,
                         alignment: Alignment.center,
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: Text('85%', style: AppText.display(color: AppColors.primary).copyWith(fontSize: 36)),
+                        decoration: const BoxDecoration(color: AppColors.card, shape: BoxShape.circle),
+                        child: Text('$percent%', style: AppText.display(color: AppColors.primary).copyWith(fontSize: 36)),
                       ),
                     ],
                   ),
@@ -822,42 +985,50 @@ class _LoadingPlanState extends State<_LoadingPlan> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final (label, state) in _statuses)
+                      for (final (i, label) in _statusLabels.indexed)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 14,
-                                height: 14,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: state == 'done' ? AppColors.blueberry : (state == 'active' ? AppColors.accent : Colors.transparent),
-                                  border: Border.all(color: state == 'waiting' ? AppColors.border : Colors.transparent),
+                          child: Builder(builder: (context) {
+                            final state = _statusFor(i, value);
+                            return Row(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  width: 14,
+                                  height: 14,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: state == 'done' ? AppColors.blueberry : (state == 'active' ? AppColors.accent : Colors.transparent),
+                                    border: Border.all(color: state == 'waiting' ? AppColors.border : Colors.transparent),
+                                  ),
+                                  child: state == 'done'
+                                      ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 10, color: Colors.white)
+                                      : null,
                                 ),
-                                child: state == 'done' ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 10, color: Colors.white) : null,
-                              ),
-                              const SizedBox(width: 12),
-                              Text(label, style: AppText.bodySm(color: state == 'waiting' ? AppColors.mutedForeground.withValues(alpha: 0.65) : AppColors.mutedForeground)),
-                            ],
-                          ),
+                                const SizedBox(width: 12),
+                                Text(label,
+                                    style: AppText.bodySm(
+                                        color: state == 'waiting' ? AppColors.mutedForeground.withValues(alpha: 0.65) : AppColors.mutedForeground)),
+                              ],
+                            );
+                          }),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: AppColors.hackWhySurface, borderRadius: BorderRadius.circular(20)),
-                    child: Text(
-                      "Almost there! Over 23K active users are currently tracking today's progress.",
-                      style: AppText.bodySm(color: AppColors.primary).copyWith(fontSize: 13),
-                    ),
-                  ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: AppColors.hackWhySurface, borderRadius: BorderRadius.circular(20)),
+            child: Text(
+              "Almost there! Over 23K active users are currently tracking today's progress.",
+              style: AppText.bodySm(color: AppColors.primary).copyWith(fontSize: 13),
+            ),
+          ).animate().fadeIn(delay: 200.ms, duration: 380.ms),
         ],
       ),
     );
@@ -882,19 +1053,28 @@ class OnboardingResumeScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('WELCOME BACK', style: AppText.bodySm(color: AppColors.questionnaireLabel).copyWith(fontWeight: FontWeight.w700)),
+                  Text('WELCOME BACK', style: AppText.bodySm(color: AppColors.questionnaireLabel).copyWith(fontWeight: FontWeight.w700))
+                      .animate()
+                      .fadeIn(duration: 380.ms),
                   const SizedBox(height: 8),
-                  Text('Your setup is still here.', style: AppText.h1(color: AppColors.primary)),
+                  Text('Your setup is still here.', style: AppText.h1(color: AppColors.primary))
+                      .animate()
+                      .fadeIn(delay: 60.ms, duration: 380.ms)
+                      .slideY(begin: 0.1, end: 0, delay: 60.ms, duration: 380.ms, curve: Curves.easeOutCubic),
                   const SizedBox(height: 12),
-                  Text('Continue with your body stats or start the short setup again.', style: AppText.bodySm(color: AppColors.mutedForeground)),
+                  Text('Continue with your body stats or start the short setup again.', style: AppText.bodySm(color: AppColors.mutedForeground))
+                      .animate()
+                      .fadeIn(delay: 120.ms, duration: 380.ms),
                   const SizedBox(height: 24),
-                  _PillButton(label: 'Continue setup', onPressed: () => context.go('/onboarding?step=6')),
+                  _PillButton(label: 'Continue setup', onPressed: () => context.go('/onboarding?step=6'))
+                      .animate()
+                      .fadeIn(delay: 190.ms, duration: 380.ms),
                   const SizedBox(height: 12),
                   SizedBox(
                     height: 56,
                     width: double.infinity,
                     child: OutlinedButton(onPressed: () => context.go('/onboarding?step=0'), child: const Text('Start over')),
-                  ),
+                  ).animate().fadeIn(delay: 240.ms, duration: 380.ms),
                   const SizedBox(height: 16),
                   Text('Nutrition Platform keeps partial answers on this device for 30 days.',
                       textAlign: TextAlign.center, style: AppText.caption()),
