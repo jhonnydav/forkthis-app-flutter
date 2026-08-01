@@ -1,0 +1,34 @@
+name: nutrition_platform
+description: "Nutrition Platform — native Flutter port of the coded design prototype."
+publish_to: 'none'
+version: 0.1.0+1
+
+# This is the native mobile counterpart to ../app (Vite/React/shadcn web prototype).
+# ENGINEERING-PLAN.md §3 names this the mobile stack going forward, replacing the
+# earlier Expo + React Native Reusables recommendation. See ../app-flutter/README.md
+# for what is and isn't ported, and why.
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  go_router: ^16.2.4
+  provider: ^6.1.5
+  google_fonts: ^6.3.2
+  shared_preferences: ^2.5.3
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/recipe-exemplars/
+    - assets/images/figma/
+    - assets/images/eat-out/
