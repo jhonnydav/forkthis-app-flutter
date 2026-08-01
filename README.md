@@ -113,6 +113,63 @@ missing safe-area insets. Only a rendered screenshot catches those.**
 
 ---
 
+## 2026-08-01 redesign — nav, icons, font, three screens, prod-readiness pass
+
+Five changes landed together, verified in this order (font/nav → icons → screen
+redesigns → prod-readiness) to keep each change bisectable:
+
+- **Nav bar**: `widgets/app_shell.dart`'s `AppTabBar` changed from a floating,
+  inset, rounded-pill bar to a bar fixed flush to the screen's bottom edge
+  (full-width, top border + soft shadow, `SafeArea` *inside* the decoration so the
+  background still runs to the true bottom under the home indicator — same
+  full-bleed-background pattern as Home/Eat Out). Added **Home** as a fifth tab
+  destination (`/home` existed as a route already but wasn't reachable from the tab
+  bar). `AppShell` computes its bottom content padding from `AppTabBar.totalHeight()`
+  so the two can't drift apart.
+- **Icons**: swapped every `Icons.*` (Material) reference for `hugeicons` v1.1.7
+  (`HugeIcon(icon: HugeIcons.strokeRoundedXxx, ...)` — the free tier ships
+  stroke-rounded style only). Constant names were pulled from the installed
+  package's `lib/styles/stroke_rounded.dart`, not guessed. Any widget that took an
+  `IconData` field (`_TabDef`, `_GoalOption`, `_Metric`, `_MenuRow`,
+  `_QuickLogRow`, `_StatCell`) had its field type changed to
+  `List<List<dynamic>>` (`HugeIcon` takes JSON icon data, not `IconData`).
+- **Font**: Satoshi (Fontshare), bundled locally as `assets/fonts/Satoshi-*.ttf`
+  across its five real weights (300/400/500/700/900 — no 600 or 800 exist).
+  `theme/text_styles.dart` maps every style to one of those five faces rather than
+  letting Flutter synthesize an in-between weight, and applies small negative
+  letter-spacing (−0.2 body, −0.4 at 23px+) for the "small kerning" instruction.
+  Replaces the earlier Manrope/DM Sans `google_fonts` setup; that dependency was
+  removed since nothing else used it.
+- **Redesigned Cook, Track, You**: kept each screen's state/data logic, refreshed
+  the visual layer — tinted-circle icon badges (matching `FastHackCard`'s
+  language), a nutrition-first "choose by mood" rail on Cook, a snapshot stat strip
+  on You (saved / calories today / water), arrow-in-circle affordance on menu rows.
+  One real bug found and fixed along the way: Cook's featured-recipe hero used
+  `Container(constraints: BoxConstraints(minHeight: 288))` wrapping
+  `Stack(fit: StackFit.expand)` inside a vertical `ListView` — `ListView` gives
+  unbounded main-axis height, so a `minHeight`-only constraint let the `Stack` try
+  to expand to infinity, which aborted layout for the *entire* `ListView` (blank
+  white screen, no error printed, tab bar still fine). This predates the redesign —
+  Cook was never individually re-screenshotted after the original safe-area fix
+  (see the entry below). Fixed by giving the hero a definite `height: 288` instead
+  of a bare `minHeight`. Worth remembering: an unbounded-height crash inside a
+  scrollable can look identical to "nothing rendered," with zero console output.
+- **Prod-readiness** (scoped to client-shell build/ship readiness, not backend,
+  tests, CI, or store submission — there's no backend yet): global error handlers
+  (`FlutterError.onError`, `PlatformDispatcher.onError`, `runZonedGuarded`) added
+  in `main.dart` so an uncaught exception logs instead of failing silently; Android
+  launcher label changed from the raw package name `nutrition_platform` to
+  `Nutrition Platform`; verified an **iOS release build succeeds**
+  (`xcodebuild ... -configuration Release -sdk iphoneos CODE_SIGNING_ALLOWED=NO`).
+  **Android release build could not be verified** — this machine has no local JDK,
+  so `flutter build apk --release` fails before touching any app code
+  (`Unable to locate a Java Runtime`). Excluded from this pass: app icon (still the
+  Flutter default — no real brand mark exists yet per the brand-direction open
+  question in the project wiki), native splash screen, Android verification of any
+  kind, automated tests, CI.
+
+---
+
 ## Verified 2026-07-31
 
 Walked on-device (iPhone 17 Pro simulator, iOS 26.5) end-to-end through: Welcome → 3 intro slides → age

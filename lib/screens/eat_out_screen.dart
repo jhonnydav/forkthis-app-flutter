@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../data/fixtures.dart';
 import '../theme/tokens.dart';
 import '../theme/text_styles.dart';
@@ -114,8 +115,8 @@ class _EatOutScreenState extends State<EatOutScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(
-                                      Icons.place_rounded,
+                                    const HugeIcon(
+                                      icon: HugeIcons.strokeRoundedLocation01,
                                       size: 14,
                                       color: AppColors.accent,
                                     ),
@@ -150,8 +151,8 @@ class _EatOutScreenState extends State<EatOutScreen> {
                             ),
                             child: IconButton(
                               onPressed: () => context.push('/search'),
-                              icon: const Icon(
-                                Icons.search_rounded,
+                              icon: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedSearch01,
                                 color: Colors.white,
                               ),
                             ),
@@ -184,8 +185,8 @@ class _EatOutScreenState extends State<EatOutScreen> {
                           ),
                           child: Row(
                             children: [
-                              Icon(
-                                Icons.search_rounded,
+                              HugeIcon(
+                                icon: HugeIcons.strokeRoundedSearch01,
                                 size: 16,
                                 color: Colors.white.withValues(alpha: 0.75),
                               ),
@@ -197,8 +198,8 @@ class _EatOutScreenState extends State<EatOutScreen> {
                                 ),
                               ),
                               const Spacer(),
-                              Icon(
-                                Icons.arrow_forward_rounded,
+                              HugeIcon(
+                                icon: HugeIcons.strokeRoundedArrowRight01,
                                 size: 16,
                                 color: Colors.white.withValues(alpha: 0.75),
                               ),
@@ -523,8 +524,8 @@ class _EatOutScreenState extends State<EatOutScreen> {
                                         color: AppColors.primary,
                                         shape: BoxShape.circle,
                                       ),
-                                      child: const Icon(
-                                        Icons.arrow_forward_rounded,
+                                      child: const HugeIcon(
+                                        icon: HugeIcons.strokeRoundedArrowRight01,
                                         size: 16,
                                         color: Colors.white,
                                       ),
@@ -656,7 +657,7 @@ class _EatOutScreenState extends State<EatOutScreen> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 hintText: 'Search 20 places',
-                prefixIcon: Icon(Icons.search_rounded),
+                prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedSearch01),
               ),
             ),
           ),
@@ -785,8 +786,8 @@ class _EatOutScreenState extends State<EatOutScreen> {
               children: [
                 Row(
                   children: [
-                    const Icon(
-                      Icons.place_rounded,
+                    const HugeIcon(
+                      icon: HugeIcons.strokeRoundedLocation01,
                       size: 16,
                       color: AppColors.primary,
                     ),
@@ -834,7 +835,7 @@ void showLocationSheet(BuildContext context, VoidCallback onDone) {
               color: AppColors.secondary,
               borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: const Icon(Icons.place_rounded, color: AppColors.primary),
+            child: const HugeIcon(icon: HugeIcons.strokeRoundedLocation01, color: AppColors.primary),
           ),
           const SizedBox(height: 12),
           Text(
@@ -951,8 +952,8 @@ class _RestaurantRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
+            const HugeIcon(
+              icon: HugeIcons.strokeRoundedArrowRight01,
               color: AppColors.mutedForeground,
             ),
           ],
@@ -1038,8 +1039,8 @@ class _RestaurantFeature extends StatelessWidget {
                             style: AppText.label(color: Colors.white),
                           ),
                           const SizedBox(width: 6),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
+                          const HugeIcon(
+                            icon: HugeIcons.strokeRoundedArrowRight01,
                             size: 16,
                             color: Colors.white,
                           ),

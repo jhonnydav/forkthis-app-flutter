@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../../data/fixtures.dart';
 import '../../state/app_state.dart';
@@ -342,7 +343,7 @@ class _GoalOption extends StatelessWidget {
   final String value;
   final String title;
   final String body;
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final bool selected;
   final VoidCallback onTap;
   const _GoalOption({required this.value, required this.title, required this.body, required this.icon, required this.selected, required this.onTap});
@@ -370,7 +371,7 @@ class _GoalOption extends StatelessWidget {
                 color: selected ? AppColors.accent : AppColors.background,
                 borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
-              child: Icon(icon, color: AppColors.primary),
+              child: HugeIcon(icon: icon, color: AppColors.primary),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -432,7 +433,7 @@ class _SelectOption extends StatelessWidget {
                 border: Border.all(color: selected ? AppColors.primary : AppColors.border, width: 2),
                 color: selected ? AppColors.primary : Colors.transparent,
               ),
-              child: selected ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
+              child: selected ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 14, color: Colors.white) : null,
             ),
           ],
         ),
@@ -489,7 +490,7 @@ class _AgeStepState extends State<_AgeStep> {
                   Row(children: [
                     Text(formatted, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.primary)),
                     const SizedBox(width: 8),
-                    const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppColors.primary),
+                    const HugeIcon(icon: HugeIcons.strokeRoundedArrowDown01, size: 18, color: AppColors.primary),
                   ]),
                 ],
               ),
@@ -498,7 +499,7 @@ class _AgeStepState extends State<_AgeStep> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.verified_user_rounded, size: 16, color: valid ? AppColors.primary : AppColors.destructive),
+              HugeIcon(icon: HugeIcons.strokeRoundedShield01, size: 16, color: valid ? AppColors.primary : AppColors.destructive),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -536,7 +537,7 @@ class _GoalStepState extends State<_GoalStep> {
           value: 'lose',
           title: 'Lose weight',
           body: 'Sustainable fat loss with muscle preservation',
-          icon: Icons.south_east_rounded,
+          icon: HugeIcons.strokeRoundedArrowDownRight01,
           selected: s.goal == Goal.lose,
           onTap: () => setState(() => s.goal = Goal.lose),
         ),
@@ -545,7 +546,7 @@ class _GoalStepState extends State<_GoalStep> {
           value: 'gain',
           title: 'Gain muscle',
           body: 'Build physical strength and energetic support',
-          icon: Icons.fitness_center_rounded,
+          icon: HugeIcons.strokeRoundedDumbbell01,
           selected: s.goal == Goal.gain,
           onTap: () => setState(() => s.goal = Goal.gain),
         ),
@@ -554,7 +555,7 @@ class _GoalStepState extends State<_GoalStep> {
           value: 'maintain',
           title: 'Maintain weight',
           body: 'Focus on longevity, metabolism and vitality',
-          icon: Icons.favorite_rounded,
+          icon: HugeIcons.strokeRoundedFavourite,
           selected: s.goal == Goal.maintain,
           onTap: () => setState(() => s.goal = Goal.maintain),
         ),
@@ -699,7 +700,7 @@ class _SurgicalStepState extends State<_SurgicalStep> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.verified_user_rounded, size: 20, color: AppColors.primary),
+                const HugeIcon(icon: HugeIcons.strokeRoundedShield01, size: 20, color: AppColors.primary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -835,7 +836,7 @@ class _LoadingPlanState extends State<_LoadingPlan> {
                                   color: state == 'done' ? AppColors.blueberry : (state == 'active' ? AppColors.accent : Colors.transparent),
                                   border: Border.all(color: state == 'waiting' ? AppColors.border : Colors.transparent),
                                 ),
-                                child: state == 'done' ? const Icon(Icons.check, size: 10, color: Colors.white) : null,
+                                child: state == 'done' ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 10, color: Colors.white) : null,
                               ),
                               const SizedBox(width: 12),
                               Text(label, style: AppText.bodySm(color: state == 'waiting' ? AppColors.mutedForeground.withValues(alpha: 0.65) : AppColors.mutedForeground)),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../data/fixtures.dart';
 import '../theme/tokens.dart';
 import '../theme/text_styles.dart';
@@ -13,9 +14,9 @@ class GoalFitBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, icon) = switch (goal) {
-      Goal.lose => (AppColors.secondary, AppColors.secondaryForeground, Icons.south_east_rounded),
-      Goal.gain => (AppColors.warmSurface, AppColors.warmForeground, Icons.north_east_rounded),
-      Goal.maintain => (AppColors.mint, AppColors.mintForeground, Icons.remove_rounded),
+      Goal.lose => (AppColors.secondary, AppColors.secondaryForeground, HugeIcons.strokeRoundedArrowDownRight01),
+      Goal.gain => (AppColors.warmSurface, AppColors.warmForeground, HugeIcons.strokeRoundedArrowUpRight01),
+      Goal.maintain => (AppColors.mint, AppColors.mintForeground, HugeIcons.strokeRoundedMinusSign),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -23,7 +24,7 @@ class GoalFitBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: fg.withValues(alpha: 0.7)),
+          HugeIcon(icon: icon, size: 14, color: fg.withValues(alpha: 0.7)),
           const SizedBox(width: 4),
           Text(goalLabel[goal]!, style: AppText.caption(color: fg).copyWith(fontWeight: FontWeight.w700)),
         ],
@@ -287,7 +288,7 @@ class DisclaimerNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, size: 16, color: AppColors.mutedForeground),
+          HugeIcon(icon: HugeIcons.strokeRoundedInformationCircle, size: 16, color: AppColors.mutedForeground),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

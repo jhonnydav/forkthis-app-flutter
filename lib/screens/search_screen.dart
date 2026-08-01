@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../data/fixtures.dart';
 import '../theme/tokens.dart';
 import '../theme/text_styles.dart';
@@ -50,7 +51,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(children: [
-                    const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.primary),
+                    const HugeIcon(icon: HugeIcons.strokeRoundedSparkles, size: 16, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Text('Ask in plain English', style: AppText.eyebrow(color: AppColors.primary)),
                   ]),
@@ -65,8 +66,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     onChanged: (v) => setState(() => _q = v),
                     decoration: const InputDecoration(
                       hintText: 'Ask for what you actually want…',
-                      prefixIcon: Icon(Icons.search_rounded),
-                      suffixIcon: Icon(Icons.arrow_forward_rounded, color: AppColors.primary),
+                      prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedSearch01),
+                      suffixIcon: HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, color: AppColors.primary),
                     ),
                   ),
                 ],
@@ -100,7 +101,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(child: Text(s, style: AppText.body().copyWith(fontWeight: FontWeight.w700))),
-                    const Icon(Icons.north_east_rounded, color: AppColors.primary),
+                    const HugeIcon(icon: HugeIcons.strokeRoundedArrowUpRight01, color: AppColors.primary),
                   ]),
                 ),
               ),

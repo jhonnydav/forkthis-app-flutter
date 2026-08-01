@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../data/recipes.dart';
 import '../state/app_state.dart';
@@ -10,7 +11,9 @@ import '../widgets/app_toast.dart';
 import '../widgets/product_sheet.dart';
 
 /// Ported from the `CookScreen`/`RecipeDrawer` in `../app/src/screens/NotBuilt.tsx`
-/// (S-21–S-24 — recipe browse and detail).
+/// (S-21–S-24 — recipe browse and detail). Redesigned 2026-08-01: rail cards now
+/// carry a calories/protein line (previously time-only), matching the nutrition-first
+/// hierarchy `FastHackCard` already uses on Eat Out.
 class CookScreen extends StatefulWidget {
   final String? recipeId;
   const CookScreen({super.key, this.recipeId});
@@ -51,10 +54,7 @@ class _CookScreenState extends State<CookScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'WHAT YOU NEED',
-                  style: AppText.eyebrow(color: AppColors.primary),
-                ),
+                Text('WHAT YOU NEED', style: AppText.eyebrow(color: AppColors.primary)),
                 const SizedBox(height: 12),
                 for (final item in recipe.ingredients)
                   Padding(
@@ -66,20 +66,14 @@ class _CookScreenState extends State<CookScreen> {
                           margin: const EdgeInsets.only(top: 8, right: 12),
                           width: 6,
                           height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppColors.accent,
-                            shape: BoxShape.circle,
-                          ),
+                          decoration: const BoxDecoration(color: AppColors.accent, shape: BoxShape.circle),
                         ),
                         Expanded(child: Text(item, style: AppText.bodySm())),
                       ],
                     ),
                   ),
                 const SizedBox(height: 20),
-                Text(
-                  'MAKE IT',
-                  style: AppText.eyebrow(color: AppColors.primary),
-                ),
+                Text('MAKE IT', style: AppText.eyebrow(color: AppColors.primary)),
                 const SizedBox(height: 12),
                 for (final (index, step) in recipe.steps.indexed)
                   Padding(
@@ -91,17 +85,10 @@ class _CookScreenState extends State<CookScreen> {
                           width: 24,
                           height: 24,
                           alignment: Alignment.center,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
-                          ),
+                          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                           child: Text(
                             '${index + 1}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -117,10 +104,7 @@ class _CookScreenState extends State<CookScreen> {
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.mint,
-                    borderRadius: BorderRadius.circular(AppRadius.xl),
-                  ),
+                  decoration: BoxDecoration(color: AppColors.mint, borderRadius: BorderRadius.circular(AppRadius.xl)),
                   child: Text(
                     'Nutrition is an estimate. Adjust portions for your goals and clinical guidance.',
                     style: AppText.caption(),
@@ -142,15 +126,11 @@ class _CookScreenState extends State<CookScreen> {
                   child: OutlinedButton.icon(
                     onPressed: () {
                       state.toggleSavedRecipe(recipe.id);
-                      showAppToast(
-                        context,
-                        saved ? 'Removed from saved recipes' : 'Recipe saved',
-                      );
+                      showAppToast(context, saved ? 'Removed from saved recipes' : 'Recipe saved');
                     },
-                    icon: Icon(
-                      saved
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_outline_rounded,
+                    icon: HugeIcon(
+                      icon: HugeIcons.strokeRoundedBookmark02,
+                      color: saved ? AppColors.primary : null,
                     ),
                     label: Text(saved ? 'Saved' : 'Save'),
                   ),
@@ -172,7 +152,7 @@ class _CookScreenState extends State<CookScreen> {
                       );
                       showAppToast(context, 'Recipe logged to today');
                     },
-                    icon: const Icon(Icons.add_rounded),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01),
                     label: const Text('Log meal'),
                   ),
                 ),
@@ -200,11 +180,20 @@ class _CookScreenState extends State<CookScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'AT HOME',
-                    style: AppText.eyebrow(color: AppColors.primary),
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(color: AppColors.mint, shape: BoxShape.circle),
+                        child: const HugeIcon(icon: HugeIcons.strokeRoundedChefHat, size: 16, color: AppColors.mintForeground),
+                      ),
+                      const SizedBox(width: 10),
+                      Text('AT HOME', style: AppText.eyebrow(color: AppColors.primary)),
+                    ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text('Cook something that fits', style: AppText.h1()),
                   const SizedBox(height: 8),
                   ConstrainedBox(
@@ -222,12 +211,14 @@ class _CookScreenState extends State<CookScreen> {
               child: GestureDetector(
                 onTap: () => _openRecipe(context, featured.id),
                 child: Container(
-                  constraints: const BoxConstraints(minHeight: 288),
+                  // Fixed height, not just minHeight — Stack(fit: expand) needs a
+                  // bounded constraint from its parent. Inside a vertical ListView
+                  // (unbounded main-axis height), a bare minHeight left the Stack
+                  // free to try to expand to infinity, which aborted layout for the
+                  // whole ListView (rendered as a blank screen, no visible error).
+                  height: 288,
                   clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: AppColors.foreground,
-                    borderRadius: BorderRadius.circular(AppRadius.xxl),
-                  ),
+                  decoration: BoxDecoration(color: AppColors.foreground, borderRadius: BorderRadius.circular(AppRadius.xxl)),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -254,44 +245,40 @@ class _CookScreenState extends State<CookScreen> {
                           children: [
                             Row(
                               children: [
-                                const Icon(
-                                  Icons.auto_awesome_rounded,
-                                  size: 16,
-                                  color: Colors.white70,
-                                ),
+                                const HugeIcon(icon: HugeIcons.strokeRoundedSparkles, size: 16, color: Colors.white70),
                                 const SizedBox(width: 8),
-                                Text(
-                                  "TONIGHT'S EASY WIN",
-                                  style: AppText.eyebrow(color: Colors.white70),
-                                ),
+                                Text("TONIGHT'S EASY WIN", style: AppText.eyebrow(color: Colors.white70)),
                               ],
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              featured.title,
-                              style: AppText.h2(color: Colors.white),
-                            ),
+                            Text(featured.title, style: AppText.h2(color: Colors.white)),
                             const SizedBox(height: 8),
-                            Text(
-                              'One pan · ${featured.time} · High protein',
-                              style: AppText.bodySm(
-                                color: Colors.white.withValues(alpha: 0.72),
-                              ),
+                            Row(
+                              children: [
+                                HugeIcon(icon: HugeIcons.strokeRoundedClock01, size: 13, color: Colors.white.withValues(alpha: 0.72)),
+                                const SizedBox(width: 4),
+                                Text(featured.time, style: AppText.caption(color: Colors.white.withValues(alpha: 0.72))),
+                                const SizedBox(width: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                                  ),
+                                  child: Text(
+                                    '${featured.calories} cal · ${featured.protein}g protein',
+                                    style: AppText.caption(color: Colors.white).copyWith(fontSize: 11),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 16),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  'Open recipe',
-                                  style: AppText.label(color: Colors.white),
-                                ),
+                                Text('Open recipe', style: AppText.label(color: Colors.white)),
                                 const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
+                                const HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 16, color: Colors.white),
                               ],
                             ),
                           ],
@@ -311,10 +298,7 @@ class _CookScreenState extends State<CookScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'MAKE IT YOURS',
-                          style: AppText.eyebrow(color: AppColors.primary),
-                        ),
+                        Text('MAKE IT YOURS', style: AppText.eyebrow(color: AppColors.primary)),
                         const SizedBox(height: 2),
                         Text('Choose by mood', style: AppText.h2()),
                       ],
@@ -325,7 +309,10 @@ class _CookScreenState extends State<CookScreen> {
               ),
             ),
             SizedBox(
-              height: 200,
+              // Fixed image height (not AspectRatio) — height must not scale with
+              // screen width while this container's height stays constant, or wide
+              // devices overflow the two-line title + nutrition caption below it.
+              height: 236,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -342,12 +329,10 @@ class _CookScreenState extends State<CookScreen> {
                         children: [
                           ClipRRect(
                             borderRadius: BorderRadius.circular(AppRadius.xl),
-                            child: AspectRatio(
-                              aspectRatio: 4 / 3,
-                              child: Image.asset(
-                                recipe.image,
-                                fit: BoxFit.cover,
-                              ),
+                            child: SizedBox(
+                              height: 130,
+                              width: double.infinity,
+                              child: Image.asset(recipe.image, fit: BoxFit.cover),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -358,7 +343,22 @@ class _CookScreenState extends State<CookScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          Text(recipe.time, style: AppText.caption()),
+                          Row(
+                            children: [
+                              HugeIcon(icon: HugeIcons.strokeRoundedClock01, size: 12, color: AppColors.mutedForeground),
+                              const SizedBox(width: 4),
+                              Text(recipe.time, style: AppText.caption(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${recipe.calories} cal · ${recipe.protein}g protein',
+                                  style: AppText.caption(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -369,9 +369,7 @@ class _CookScreenState extends State<CookScreen> {
             Container(
               margin: const EdgeInsets.only(top: 12),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.border)),
-              ),
+              decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border))),
               child: InkWell(
                 onTap: () => context.go('/eat-out'),
                 child: Row(
@@ -380,14 +378,8 @@ class _CookScreenState extends State<CookScreen> {
                       width: 44,
                       height: 44,
                       alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: AppColors.mint,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.soup_kitchen_rounded,
-                        color: AppColors.mintForeground,
-                      ),
+                      decoration: const BoxDecoration(color: AppColors.mint, shape: BoxShape.circle),
+                      child: const HugeIcon(icon: HugeIcons.strokeRoundedRestaurant01, color: AppColors.mintForeground),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -395,17 +387,11 @@ class _CookScreenState extends State<CookScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Plans changed?', style: AppText.h3()),
-                          Text(
-                            'Find a nearby order instead',
-                            style: AppText.caption(),
-                          ),
+                          Text('Find a nearby order instead', style: AppText.caption()),
                         ],
                       ),
                     ),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      color: AppColors.mutedForeground,
-                    ),
+                    const HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, color: AppColors.mutedForeground),
                   ],
                 ),
               ),

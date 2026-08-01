@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../data/fixtures.dart';
 import '../state/app_state.dart';
@@ -135,7 +136,7 @@ class HackDetailScreen extends StatelessWidget {
                       state.logItem(sourceId: hack.id, type: 'order', title: hack.title, calories: hack.calories, protein: hack.protein, image: hack.image);
                       showAppToast(context, 'Logged to today', description: '${hack.calories} cal · ${hack.protein}g protein');
                     },
-                    icon: const Icon(Icons.add_rounded),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01),
                     label: const Text('Log this'),
                     style: ElevatedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill))),
                   ),
@@ -156,7 +157,10 @@ class HackDetailScreen extends StatelessWidget {
                         _showSavePrompt(context, hack.id, hack.title);
                       }
                     },
-                    icon: Icon(isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded),
+                    icon: HugeIcon(
+                      icon: HugeIcons.strokeRoundedBookmark02,
+                      color: isSaved ? AppColors.primary : null,
+                    ),
                     label: Text(isSaved ? 'Saved' : 'Save it'),
                   ),
                 ),
@@ -166,7 +170,7 @@ class HackDetailScreen extends StatelessWidget {
                   height: 48,
                   child: TextButton.icon(
                     onPressed: () => context.push('/search?q=${Uri.encodeComponent("something like ${hack.title}")}'),
-                    icon: const Icon(Icons.chat_bubble_outline_rounded),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedMessage01),
                     label: const Text('Ask about this order'),
                   ),
                 ),
@@ -212,7 +216,7 @@ class HackDetailScreen extends StatelessWidget {
               height: 48,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(AppRadius.xl)),
-              child: const Icon(Icons.bookmark_rounded, color: AppColors.primary),
+              child: const HugeIcon(icon: HugeIcons.strokeRoundedBookmark02, color: AppColors.primary),
             ),
             const SizedBox(height: 16),
             Text(

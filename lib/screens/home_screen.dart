@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../data/fixtures.dart';
 import '../state/app_state.dart';
@@ -89,7 +90,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                           child: IconButton(
                             onPressed: () => context.push('/search'),
-                            icon: const Icon(Icons.search_rounded),
+                            icon: const HugeIcon(icon: HugeIcons.strokeRoundedSearch01),
                             padding: EdgeInsets.zero,
                           ),
                         ),
@@ -131,8 +132,8 @@ class HomeScreen extends StatelessWidget {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(
-                                      Icons.place_rounded,
+                                    const HugeIcon(
+                                      icon: HugeIcons.strokeRoundedLocation01,
                                       size: 14,
                                       color: AppColors.accent,
                                     ),
@@ -184,19 +185,19 @@ class HomeScreen extends StatelessWidget {
                                   child: Row(
                                     children: [
                                       _Metric(
-                                        icon: Icons.restaurant_menu_rounded,
+                                        icon: HugeIcons.strokeRoundedRestaurant01,
                                         label: 'Next meal',
                                         value: 'Lunch',
                                       ),
                                       _vDivider(),
                                       _Metric(
-                                        icon: Icons.water_drop_rounded,
+                                        icon: HugeIcons.strokeRoundedDroplet,
                                         label: 'Water',
                                         value: '${state.waterCups} of 8',
                                       ),
                                       _vDivider(),
                                       _Metric(
-                                        icon: Icons.directions_walk_rounded,
+                                        icon: HugeIcons.strokeRoundedWalking,
                                         label: 'Movement',
                                         value: '${state.movementMinutes} min',
                                       ),
@@ -286,8 +287,8 @@ class HomeScreen extends StatelessWidget {
                                 color: AppColors.primary,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
-                                Icons.restaurant_menu_rounded,
+                              child: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedRestaurant01,
                                 color: Colors.white,
                               ),
                             ),
@@ -318,8 +319,8 @@ class HomeScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
+                            const HugeIcon(
+                              icon: HugeIcons.strokeRoundedArrowRight01,
                               color: AppColors.mutedForeground,
                             ),
                           ],
@@ -340,8 +341,8 @@ class HomeScreen extends StatelessWidget {
                             color: AppColors.warmSurface,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.favorite_rounded,
+                          child: const HugeIcon(
+                            icon: HugeIcons.strokeRoundedFavourite,
                             color: AppColors.primary,
                             size: 20,
                           ),
@@ -376,7 +377,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                         IconButton(
                           onPressed: () => context.go('/track'),
-                          icon: const Icon(Icons.arrow_forward_rounded),
+                          icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01),
                         ),
                       ],
                     ),
@@ -398,7 +399,7 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _Metric extends StatelessWidget {
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final String label;
   final String value;
   const _Metric({required this.icon, required this.label, required this.value});
@@ -413,7 +414,7 @@ class _Metric extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 12, color: AppColors.accent),
+                HugeIcon(icon: icon, size: 12, color: AppColors.accent),
                 const SizedBox(width: 6),
                 Text(
                   label,

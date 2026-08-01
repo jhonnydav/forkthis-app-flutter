@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import '../data/fixtures.dart';
 import '../theme/tokens.dart';
 import '../theme/text_styles.dart';
@@ -75,7 +76,7 @@ class RestaurantDetailScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(children: [
                       if (r.distanceMi != null) ...[
-                        const Icon(Icons.place_rounded, size: 16, color: Colors.white70),
+                        const HugeIcon(icon: HugeIcons.strokeRoundedLocation01, size: 16, color: Colors.white70),
                         const SizedBox(width: 4),
                         Text('${r.distanceMi} mi away · ', style: AppText.bodySm(color: Colors.white70).copyWith(fontWeight: FontWeight.w600)),
                       ],
@@ -142,7 +143,7 @@ class RestaurantDetailScreen extends StatelessWidget {
                                     const SizedBox(width: 10),
                                     Text('${hack.protein}g protein', style: AppText.caption()),
                                     const Spacer(),
-                                    const Icon(Icons.arrow_forward_rounded, size: 20),
+                                    const HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 20),
                                   ]),
                                 ),
                               ],
