@@ -37,6 +37,49 @@ becomes useful later, build it fresh rather than transliterating the web one.
 
 ---
 
+## 2026-08-02 — flow polish, notifications, and scroll navigation
+
+- Onboarding and questionnaire actions now live in safe-area-aware fixed footers, while the question
+  content remains independently scrollable. Progress indicators use the real device top inset plus
+  deliberate breathing room instead of a fixed status-bar spacer.
+- The results builder now runs as a seven-second staged sequence with synchronized progress, orbit,
+  pulse, changing glyphs, task completion, and a short ready state before entering Home.
+- `AppShell` supports an optional fixed action above the tab bar and a compact top bar that animates in
+  after vertical scrolling. The order-detail `Log this` action uses the fixed region; Home, Eat Out,
+  Cook, Track, and You use the scroll-aware header.
+- Action feedback is now an animated top popup and is also recorded in a local, persistent in-app
+  notification inbox. The inbox is available from the bell in every scroll-aware top bar, supports
+  unread counts, individual read state, and mark-all-read.
+- All `go_router` destinations use a shared fade-and-slide page transition. Onboarding keeps its own
+  keyed in-place transition for query-driven steps.
+
+## 2026-08-02 — Profile, Cook, and Track redesign
+
+- Added a branded, reduced-motion-aware splash route before onboarding and matched the native iOS and
+  Android launch backgrounds to it so there is no white frame between launch and Flutter rendering.
+- Rebuilt You as a detailed profile: editable identity, units and activity, visible goal/health
+  context, computed daily rhythm, saved library, reminders, privacy controls, and validated local
+  profile editing.
+- Rebuilt Cook around functional pace filters and scannable nutrition-first recipe rows. Recipe taps
+  now open dedicated route-backed pages with save state, interactive ingredient and step checklists,
+  and a fixed meal logging action.
+- Rebuilt Track with a daily guide, quick actions, reversible water and movement controls, manual meal
+  entry with validation, detailed log sheets, removal, and direct routes into recipes or restaurant
+  orders.
+
+## 2026-08-02 — Home and Eat Out redesign
+
+- Rebuilt Home around the persisted daily state: calorie progress, protein, water and movement context,
+  quick actions, personalized next choices, recent logs, and the existing scroll-triggered navigation.
+- Rebuilt Eat Out into three focused modes for personalized orders, goal-matched choices, and nearby
+  places. Search, category filtering, location consent, empty states, restaurant routes, and smart-order
+  routes remain functional.
+- Reworked restaurant detail into a vertically scannable, nutrition-first list and removed the fixed-height
+  horizontal card layout that overflowed on smaller simulator widths. Smart-order detail now uses the
+  actual order image, shared typography, and the shared nutrition summary.
+
+---
+
 ## Tokens: shared values, not a shared file
 
 `lib/theme/tokens.dart` mirrors `../app/src/index.css`'s `:root` block by **value**. There is no build

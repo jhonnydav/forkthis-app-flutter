@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/eat_out_screen.dart';
 import 'screens/search_screen.dart';
@@ -8,6 +10,7 @@ import 'screens/hack_detail_screen.dart';
 import 'screens/cook_screen.dart';
 import 'screens/track_screen.dart';
 import 'screens/you_screen.dart';
+import 'screens/app_error_screen.dart';
 
 /// Route paths mirror `../app/src/App.tsx` closely — `/onboarding?step=N`,
 /// `/eat-out?view=&data=&category=`, `/hack/:id`, `/search?q=` — so anyone who knows
@@ -15,46 +18,103 @@ import 'screens/you_screen.dart';
 /// go_router gives every one of these query-param states a real, shareable route,
 /// same as the web app's URL-addressable states (though there is no in-app screen
 /// index here — see app-flutter/README.md for why).
+CustomTransitionPage<void> _page(GoRouterState state, Widget child) =>
+    CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 360),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curve = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curve,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.025, 0.015),
+              end: Offset.zero,
+            ).animate(curve),
+            child: child,
+          ),
+        );
+      },
+    );
+
 final GoRouter appRouter = GoRouter(
-  initialLocation: '/onboarding?step=0',
+  initialLocation: '/splash',
+  errorPageBuilder: (context, state) => _page(state, const AppErrorScreen()),
   routes: [
     GoRoute(
+      path: '/splash',
+      pageBuilder: (context, state) => _page(state, const SplashScreen()),
+    ),
+    GoRoute(
       path: '/onboarding',
-      builder: (context, state) {
-        final step = int.tryParse(state.uri.queryParameters['step'] ?? '0') ?? 0;
-        return OnboardingScreen(step: step);
+      pageBuilder: (context, state) {
+        final step =
+            int.tryParse(state.uri.queryParameters['step'] ?? '0') ?? 0;
+        return _page(state, OnboardingScreen(step: step));
       },
     ),
     GoRoute(
       path: '/onboarding/resume',
-      builder: (context, state) => const OnboardingResumeScreen(),
+      pageBuilder: (context, state) =>
+          _page(state, const OnboardingResumeScreen()),
     ),
-    GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
+    GoRoute(
+      path: '/home',
+      pageBuilder: (context, state) => _page(state, const HomeScreen()),
+    ),
     GoRoute(
       path: '/eat-out',
-      builder: (context, state) => EatOutScreen(
-        view: state.uri.queryParameters['view'] ?? 'restaurant',
-        dense: state.uri.queryParameters['data'] == 'dense',
-        category: state.uri.queryParameters['category'] ?? 'All',
+      pageBuilder: (context, state) => _page(
+        state,
+        EatOutScreen(
+          view: state.uri.queryParameters['view'] ?? 'restaurant',
+          dense: state.uri.queryParameters['data'] == 'dense',
+          category: state.uri.queryParameters['category'] ?? 'All',
+        ),
       ),
     ),
     GoRoute(
       path: '/search',
-      builder: (context, state) => SearchScreen(initialQuery: state.uri.queryParameters['q'] ?? ''),
+      pageBuilder: (context, state) => _page(
+        state,
+        SearchScreen(initialQuery: state.uri.queryParameters['q'] ?? ''),
+      ),
     ),
     GoRoute(
       path: '/restaurant/:id',
-      builder: (context, state) => RestaurantDetailScreen(id: state.pathParameters['id']!),
+      pageBuilder: (context, state) =>
+          _page(state, RestaurantDetailScreen(id: state.pathParameters['id']!)),
     ),
     GoRoute(
       path: '/hack/:id',
-      builder: (context, state) => HackDetailScreen(id: state.pathParameters['id']!),
+      pageBuilder: (context, state) =>
+          _page(state, HackDetailScreen(id: state.pathParameters['id']!)),
+    ),
+    GoRoute(
+      path: '/cook/recipe/:id',
+      pageBuilder: (context, state) =>
+          _page(state, RecipeDetailScreen(id: state.pathParameters['id']!)),
     ),
     GoRoute(
       path: '/cook',
-      builder: (context, state) => CookScreen(recipeId: state.uri.queryParameters['recipe']),
+      pageBuilder: (context, state) => _page(
+        state,
+        CookScreen(recipeId: state.uri.queryParameters['recipe']),
+      ),
     ),
-    GoRoute(path: '/track', builder: (context, state) => const TrackScreen()),
-    GoRoute(path: '/you', builder: (context, state) => const YouScreen()),
+    GoRoute(
+      path: '/track',
+      pageBuilder: (context, state) => _page(state, const TrackScreen()),
+    ),
+    GoRoute(
+      path: '/you',
+      pageBuilder: (context, state) => _page(state, const YouScreen()),
+    ),
   ],
 );

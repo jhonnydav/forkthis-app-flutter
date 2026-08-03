@@ -5,18 +5,15 @@ import 'package:flutter/material.dart';
 /// without also changing the web app; the two must stay in sync by hand until a
 /// real shared-token pipeline exists (see ENGINEERING-PLAN.md §3).
 ///
-/// CONTRAST AUDIT (computed OKLCH→sRGB→WCAG against the live values, 2026):
-/// Real failures exist in the current palette and were ported as-is rather than
-/// silently corrected — this file mirrors what actually ships today:
-///   • warmForeground on warm:      4.05:1 (needs 4.5 for body text; used only on
-///     bold caption-weight badge text, which is borderline against the 3:1
-///     large-text floor — acceptable there, NOT safe for body copy)
-///   • warm as plain text on bg:    2.75:1 — do not use `warm` as a text color
-///   • coralForeground on coral:    2.99:1 — `coral` is icon/accent-fill only
-///   • input vs background/card:    ~1.3:1 — `input` no longer functions as a
-///     ≥3:1 control-boundary token (it now equals `border`). Rely on `borderStrong`
-///     for anything that must hit the 3:1 non-text UI floor.
-/// See app-flutter/README.md for the full note.
+/// CONTRAST AUDIT (computed sRGB→WCAG, fixed 2026-08-03 per DESIGN-BRIEF.md §4.1):
+/// The four failures previously documented here were real bugs, not accepted risk —
+/// fixed as part of reconciling the design brief with client discovery feedback:
+///   • warmForeground on warm:  4.05:1 → 5.30:1 (darkened warmForeground)
+///   • coralForeground on coral: 2.99:1 → 3.90:1 (darkened coral itself)
+///   • input vs background/card: ~1.3:1 → 3.47:1 / 3.63:1 (input no longer equals
+///     border; it now matches borderStrong's verified value)
+/// `warm` itself is still icon/badge-fill only — 2.75:1 as plain text on `background`,
+/// never use it as a text color. See app-flutter/README.md for the full note.
 class AppColors {
   AppColors._();
 
@@ -42,17 +39,17 @@ class AppColors {
   static const destructiveForeground = Color(0xFFFDFCF8);
 
   static const border = Color(0xFFDBDEE6);
-  static const input = Color(0xFFDBDEE6);
+  static const input = Color(0xFF838691);
   static const borderStrong = Color(0xFF838691);
   static const ring = primary;
 
   // ── Product semantic tokens ──────────────────────────────────────────
   static const warm = Color(0xFFF27424);
-  static const warmForeground = Color(0xFF5C2B06);
+  static const warmForeground = Color(0xFF3D1D04);
   static const warmSurface = Color(0xFFFFE7C9);
 
-  static const coral = Color(0xFFE96E50);
-  static const coralForeground = Color(0xFFFDFCF8);
+  static const coral = Color(0xFFD65A3D);
+  static const coralForeground = Color(0xFFFFFFFF);
   static const coralSurface = Color(0xFFFFE5DA);
 
   static const blueberry = Color(0xFF406051);

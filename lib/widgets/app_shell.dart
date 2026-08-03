@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import '../theme/tokens.dart';
 import '../theme/text_styles.dart';
+import 'app_notifications.dart';
 
 class _TabDef {
   final String path;
@@ -43,7 +45,11 @@ class AppTabBar extends StatelessWidget {
         color: AppColors.card,
         border: const Border(top: BorderSide(color: AppColors.border)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 24, offset: const Offset(0, -6)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 24,
+            offset: const Offset(0, -6),
+          ),
         ],
       ),
       child: SafeArea(
@@ -64,13 +70,18 @@ class AppTabBar extends StatelessWidget {
                       HugeIcon(
                         icon: tab.icon,
                         size: 24,
-                        color: active ? AppColors.primary : AppColors.mutedForeground,
+                        color: active
+                            ? AppColors.primary
+                            : AppColors.mutedForeground,
                       ),
                       const SizedBox(height: 3),
                       Text(
                         tab.label,
-                        style: AppText.caption(color: active ? AppColors.primary : AppColors.mutedForeground)
-                            .copyWith(fontSize: 10, height: 1),
+                        style: AppText.caption(
+                          color: active
+                              ? AppColors.primary
+                              : AppColors.mutedForeground,
+                        ).copyWith(fontSize: 10, height: 1),
                       ),
                     ],
                   ),
@@ -91,7 +102,13 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onBack;
   final Widget? trailing;
 
-  const ScreenHeader({super.key, this.title, this.eyebrow, this.onBack, this.trailing});
+  const ScreenHeader({
+    super.key,
+    this.title,
+    this.eyebrow,
+    this.onBack,
+    this.trailing,
+  });
 
   @override
   Size get preferredSize => const Size.fromHeight(64);
@@ -110,7 +127,10 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
           if (onBack != null)
             IconButton(
               onPressed: onBack,
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedArrowLeft01, size: 22),
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedArrowLeft01,
+                size: 22,
+              ),
               tooltip: 'Back',
             )
           else
@@ -122,7 +142,12 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 if (eyebrow != null) Text(eyebrow!, style: AppText.eyebrow()),
                 if (title != null)
-                  Text(title!, style: AppText.h3(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    title!,
+                    style: AppText.h3(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -136,24 +161,160 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
 /// Device shell — ported from `AppShell` in AppShell.tsx. Bottom padding reserves
 /// space for the fixed tab bar so content never sits beneath it; computed from the
 /// same formula the bar itself uses so the two never drift apart.
-class AppShell extends StatelessWidget {
+class AppShell extends StatefulWidget {
   final Widget child;
   final bool tabBar;
   final PreferredSizeWidget? header;
+  final String? scrollTitle;
+  final String? scrollEyebrow;
+  final Widget? fixedAction;
 
-  const AppShell({super.key, required this.child, this.tabBar = true, this.header});
+  const AppShell({
+    super.key,
+    required this.child,
+    this.tabBar = true,
+    this.header,
+    this.scrollTitle,
+    this.scrollEyebrow,
+    this.fixedAction,
+  });
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  bool _showScrollHeader = false;
+
+  bool _handleScroll(ScrollNotification notification) {
+    if (widget.scrollTitle == null ||
+        notification.metrics.axis != Axis.vertical ||
+        notification.depth != 0) {
+      return false;
+    }
+    final shouldShow = notification.metrics.pixels > 72;
+    if (shouldShow != _showScrollHeader) {
+      setState(() => _showScrollHeader = shouldShow);
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final actionHeight = widget.fixedAction == null ? 0.0 : 80.0;
+    final tabHeight = widget.tabBar ? AppTabBar.totalHeight(context) : 0.0;
+    final bottomBars = <Widget>[
+      if (widget.fixedAction != null)
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: const BoxDecoration(
+            color: AppColors.card,
+            border: Border(top: BorderSide(color: AppColors.border)),
+          ),
+          child: widget.fixedAction,
+        ),
+      if (widget.tabBar) const AppTabBar(),
+    ];
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: header,
+      appBar: widget.header,
       extendBody: true,
-      body: Padding(
-        padding: EdgeInsets.only(bottom: tabBar ? AppTabBar.totalHeight(context) : 0),
-        child: child,
+      body: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(bottom: tabHeight + actionHeight),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: _handleScroll,
+              child: widget.child,
+            ),
+          ),
+          if (widget.scrollTitle != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: IgnorePointer(
+                ignoring: !_showScrollHeader,
+                child: AnimatedSlide(
+                  offset: _showScrollHeader ? Offset.zero : const Offset(0, -1),
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOutCubic,
+                  child: AnimatedOpacity(
+                    opacity: _showScrollHeader ? 1 : 0,
+                    duration: const Duration(milliseconds: 180),
+                    child: _ScrollTopBar(
+                      title: widget.scrollTitle!,
+                      eyebrow: widget.scrollEyebrow,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
-      bottomNavigationBar: tabBar ? const AppTabBar() : null,
+      bottomNavigationBar: bottomBars.isEmpty
+          ? null
+          : Column(mainAxisSize: MainAxisSize.min, children: bottomBars),
+    );
+  }
+}
+
+class _ScrollTopBar extends StatelessWidget {
+  final String title;
+  final String? eyebrow;
+  const _ScrollTopBar({required this.title, this.eyebrow});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.card.withValues(alpha: 0.96),
+          border: const Border(bottom: BorderSide(color: AppColors.border)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: SizedBox(
+            height: 56,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 20, right: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (eyebrow != null)
+                          Text(
+                            eyebrow!,
+                            style: AppText.eyebrow(color: AppColors.primary),
+                          ),
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppText.h3(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const NotificationBell(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

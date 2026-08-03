@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'router.dart';
 import 'state/app_state.dart';
@@ -15,7 +16,11 @@ void main() {
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     FlutterError.reportError(
-      FlutterErrorDetails(exception: error, stack: stack, library: 'nutrition_platform'),
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'nutrition_platform',
+      ),
     );
     return true;
   };
@@ -28,7 +33,11 @@ void main() {
       ),
     ),
     (error, stack) => FlutterError.reportError(
-      FlutterErrorDetails(exception: error, stack: stack, library: 'nutrition_platform'),
+      FlutterErrorDetails(
+        exception: error,
+        stack: stack,
+        library: 'nutrition_platform',
+      ),
     ),
   );
 }
@@ -43,6 +52,10 @@ class NutritionPlatformApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: appTheme,
       routerConfig: appRouter,
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }
