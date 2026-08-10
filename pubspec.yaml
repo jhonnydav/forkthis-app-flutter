@@ -21,6 +21,7 @@ dependencies:
   intl: ^0.20.2
   hugeicons: ^1.1.7
   flutter_animate: ^4.5.2
+  home_widget: ^0.9.3
 
 dev_dependencies:
   flutter_test:
@@ -32,8 +33,21 @@ flutter:
   assets:
     - assets/images/recipe-exemplars/
     - assets/images/figma/
+    - assets/images/figma/home/
     - assets/images/eat-out/
+    - assets/images/badges/
   fonts:
+    # Display headlines only, per the new Figma redesign (2026-08-06) — large
+    # hero/section headings ("Real meals with the macros worked out.", "Cook",
+    # "Pick an order"). Everything else moved back to Satoshi.
+    - family: Galantic
+      fonts:
+        - asset: assets/fonts/galantic.regular.otf
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/Manrope-Variable.ttf
+    # Restored from git (f198437) — the Figma redesign uses "Satoshi Variable"
+    # for greetings, card titles, stat figures, and nav labels throughout.
     - family: Satoshi
       fonts:
         - asset: assets/fonts/Satoshi-Light.ttf

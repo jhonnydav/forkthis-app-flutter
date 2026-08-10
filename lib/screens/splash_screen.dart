@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
+import '../product.dart';
 import '../state/app_state.dart';
 import '../theme/text_styles.dart';
 import '../theme/tokens.dart';
@@ -47,8 +48,13 @@ class _SplashScreenState extends State<SplashScreen>
       () {
         if (!mounted) return;
         final state = context.read<AppState>();
-        if (state.onboardingCompleted) {
-          context.go('/home');
+        if (state.signedIn && state.onboardingCompleted) {
+          context.go('/loading?mode=returning');
+        } else if (!state.signedIn && state.onboardingStep >= 4) {
+          // They finished the intro slides but closed the app before
+          // finishing account creation — resume right back at that gate
+          // instead of dropping them past it or restarting the intro.
+          context.go('/signup?resume=${state.onboardingStep}');
         } else if (state.onboardingStep > 0) {
           context.go('/onboarding/resume');
         } else {
@@ -75,99 +81,114 @@ class _SplashScreenState extends State<SplashScreen>
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
-        backgroundColor: AppColors.primary,
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
-            child: Column(
-              children: [
-                const Spacer(),
-                FadeTransition(
-                  opacity: entranceCurve,
-                  child: ScaleTransition(
-                    scale: Tween<double>(begin: 0.82, end: 1).animate(
-                      CurvedAnimation(
-                        parent: _entrance,
-                        curve: Curves.easeOutBack,
-                      ),
-                    ),
-                    child: AnimatedBuilder(
-                      animation: _pulse,
-                      builder: (context, child) => Transform.scale(
-                        scale: 1 + (_pulse.value * 0.035),
-                        child: child,
-                      ),
-                      child: Container(
-                        width: 92,
-                        height: 92,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(24),
+        backgroundColor: AppColors.paletteLava,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/figma/splash-warm-fruit-frame.jpg',
+              fit: BoxFit.cover,
+              semanticLabel: 'Citrus and leaf illustration',
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                child: Column(
+                  children: [
+                    const Spacer(),
+                    FadeTransition(
+                      opacity: entranceCurve,
+                      child: ScaleTransition(
+                        scale: Tween<double>(begin: 0.82, end: 1).animate(
+                          CurvedAnimation(
+                            parent: _entrance,
+                            curve: Curves.easeOutBack,
+                          ),
                         ),
-                        child: const HugeIcon(
-                          icon: HugeIcons.strokeRoundedFavourite,
-                          size: 42,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                FadeTransition(
-                  opacity: entranceCurve,
-                  child: Column(
-                    children: [
-                      Text(
-                        'Nutrition Platform',
-                        textAlign: TextAlign.center,
-                        style: AppText.h1(color: Colors.white),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Weight health, made more human.',
-                        textAlign: TextAlign.center,
-                        style: AppText.bodySm(
-                          color: Colors.white.withValues(alpha: 0.68),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                FadeTransition(
-                  opacity: entranceCurve,
-                  child: Column(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                        child: SizedBox(
-                          width: 84,
-                          height: 3,
-                          child: LinearProgressIndicator(
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.16,
+                        child: AnimatedBuilder(
+                          animation: _pulse,
+                          builder: (context, child) => Transform.scale(
+                            scale: 1 + (_pulse.value * 0.035),
+                            child: child,
+                          ),
+                          child: Container(
+                            width: 92,
+                            height: 92,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: AppColors.accent,
+                              borderRadius: BorderRadius.circular(24),
                             ),
-                            valueColor: const AlwaysStoppedAnimation(
-                              AppColors.accent,
+                            child: const HugeIcon(
+                              icon: HugeIcons.strokeRoundedFavourite,
+                              size: 42,
+                              color: AppColors.primary,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'Private by design',
-                        style: AppText.caption(
-                          color: Colors.white.withValues(alpha: 0.54),
-                        ),
+                    ),
+                    const SizedBox(height: 28),
+                    FadeTransition(
+                      opacity: entranceCurve,
+                      child: Column(
+                        children: [
+                          Text(
+                            productName,
+                            textAlign: TextAlign.center,
+                            style: AppText.h1(
+                              color: AppColors.paletteCosmicLatte,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'For the moment that could knock you off track.',
+                            textAlign: TextAlign.center,
+                            style: AppText.bodySm(
+                              color: AppColors.paletteCosmicLatte.withValues(
+                                alpha: 0.82,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    const Spacer(),
+                    FadeTransition(
+                      opacity: entranceCurve,
+                      child: Column(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
+                            child: SizedBox(
+                              width: 84,
+                              height: 3,
+                              child: LinearProgressIndicator(
+                                backgroundColor: AppColors.paletteCosmicLatte
+                                    .withValues(alpha: 0.24),
+                                valueColor: const AlwaysStoppedAnimation(
+                                  AppColors.paletteMargarine,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Private by design',
+                            style: AppText.caption(
+                              color: AppColors.paletteCosmicLatte.withValues(
+                                alpha: 0.72,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );

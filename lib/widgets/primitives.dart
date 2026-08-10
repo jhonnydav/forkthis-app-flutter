@@ -14,19 +14,39 @@ class GoalFitBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, icon) = switch (goal) {
-      Goal.lose => (AppColors.secondary, AppColors.secondaryForeground, HugeIcons.strokeRoundedArrowDownRight01),
-      Goal.gain => (AppColors.warmSurface, AppColors.warmForeground, HugeIcons.strokeRoundedArrowUpRight01),
-      Goal.maintain => (AppColors.mint, AppColors.mintForeground, HugeIcons.strokeRoundedMinusSign),
+      Goal.lose => (
+        AppColors.secondary,
+        AppColors.secondaryForeground,
+        HugeIcons.strokeRoundedArrowDownRight01,
+      ),
+      Goal.gain => (
+        AppColors.warmSurface,
+        AppColors.warmForeground,
+        HugeIcons.strokeRoundedArrowUpRight01,
+      ),
+      Goal.maintain => (
+        AppColors.mint,
+        AppColors.mintForeground,
+        HugeIcons.strokeRoundedMinusSign,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppRadius.pill)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           HugeIcon(icon: icon, size: 14, color: fg.withValues(alpha: 0.7)),
           const SizedBox(width: 4),
-          Text(goalLabel[goal]!, style: AppText.caption(color: fg).copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            goalLabel[goal]!,
+            style: AppText.caption(
+              color: fg,
+            ).copyWith(fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -40,7 +60,10 @@ class ConditionTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg) = switch (condition) {
-      Condition.pcos => (AppColors.blueberrySurface, AppColors.secondaryForeground),
+      Condition.pcos => (
+        AppColors.blueberrySurface,
+        AppColors.secondaryForeground,
+      ),
       Condition.postOp => (AppColors.warmSurface, AppColors.warmForeground),
       Condition.glp1 => (AppColors.secondary, AppColors.secondaryForeground),
       Condition.highProtein => (AppColors.mint, AppColors.mintForeground),
@@ -53,7 +76,10 @@ class ConditionTag extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: fg.withValues(alpha: 0.15)),
       ),
-      child: Text(conditionLabel[condition]!, style: AppText.caption(color: fg)),
+      child: Text(
+        conditionLabel[condition]!,
+        style: AppText.caption(color: fg),
+      ),
     );
   }
 }
@@ -65,7 +91,13 @@ class NutritionRow extends StatelessWidget {
   final String? portionNote;
   final bool large;
 
-  const NutritionRow({super.key, required this.calories, required this.protein, this.portionNote, this.large = false});
+  const NutritionRow({
+    super.key,
+    required this.calories,
+    required this.protein,
+    this.portionNote,
+    this.large = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +107,9 @@ class NutritionRow extends StatelessWidget {
       children: [
         Container(
           decoration: const BoxDecoration(
-            border: Border.symmetric(horizontal: BorderSide(color: AppColors.border)),
+            border: Border.symmetric(
+              horizontal: BorderSide(color: AppColors.border),
+            ),
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Row(
@@ -99,10 +133,17 @@ class NutritionRow extends StatelessWidget {
                     Text('Protein', style: AppText.caption()),
                     const SizedBox(height: 2),
                     RichText(
-                      text: TextSpan(children: [
-                        TextSpan(text: '$protein', style: numStyle),
-                        TextSpan(text: 'g', style: AppText.bodySm(color: AppColors.mutedForeground)),
-                      ]),
+                      text: TextSpan(
+                        children: [
+                          TextSpan(text: '$protein', style: numStyle),
+                          TextSpan(
+                            text: 'g',
+                            style: AppText.bodySm(
+                              color: AppColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -112,7 +153,10 @@ class NutritionRow extends StatelessWidget {
         ),
         if (portionNote != null) ...[
           const SizedBox(height: 8),
-          Text(portionNote!, style: AppText.bodySm(color: AppColors.mutedForeground)),
+          Text(
+            portionNote!,
+            style: AppText.bodySm(color: AppColors.mutedForeground),
+          ),
         ],
       ],
     );
@@ -132,7 +176,10 @@ class FastHackCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.xxl),
       onTap: () => context.push('/hack/${hack.id}'),
       child: Container(
-        decoration: BoxDecoration(color: AppColors.card, borderRadius: BorderRadius.circular(AppRadius.xxl)),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.xxl),
+        ),
         clipBehavior: Clip.antiAlias,
         child: IntrinsicHeight(
           child: Row(
@@ -156,32 +203,67 @@ class FastHackCard extends StatelessWidget {
                               width: 24,
                               height: 24,
                               alignment: Alignment.center,
-                              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(6)),
-                              child: Text(restaurant!.mark,
-                                  style: AppText.caption(color: AppColors.primaryForeground).copyWith(fontSize: 10, fontWeight: FontWeight.w800)),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                restaurant!.mark,
+                                style:
+                                    AppText.caption(
+                                      color: AppColors.primaryForeground,
+                                    ).copyWith(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(restaurant!.name,
-                                  style: AppText.caption().copyWith(fontWeight: FontWeight.w700),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                restaurant!.name,
+                                style: AppText.caption().copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
                       const SizedBox(height: 6),
-                      Text(hack.title, style: AppText.h3(), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(
+                        hack.title,
+                        style: AppText.h3(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
                           RichText(
-                            text: TextSpan(children: [
-                              TextSpan(text: '${hack.calories} ', style: AppText.numericSm()),
-                              TextSpan(text: 'cal', style: AppText.caption(color: AppColors.mutedForeground)),
-                            ]),
+                            text: TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${hack.calories} ',
+                                  style: AppText.numericSm(),
+                                ),
+                                TextSpan(
+                                  text: 'cal',
+                                  style: AppText.caption(
+                                    color: AppColors.mutedForeground,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(width: 12),
-                          Text('${hack.protein}g protein', style: AppText.caption().copyWith(fontWeight: FontWeight.w700)),
+                          Text(
+                            '${hack.protein}g protein',
+                            style: AppText.caption().copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -189,8 +271,10 @@ class FastHackCard extends StatelessWidget {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          if (hack.goals.isNotEmpty) GoalFitBadge(goal: hack.goals.first),
-                          if (hack.conditions.isNotEmpty) ConditionTag(condition: hack.conditions.first),
+                          if (hack.goals.isNotEmpty)
+                            GoalFitBadge(goal: hack.goals.first),
+                          if (hack.conditions.isNotEmpty)
+                            ConditionTag(condition: hack.conditions.first),
                         ],
                       ),
                     ],
@@ -218,18 +302,14 @@ class OrderScript extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment(-0.6, -1),
-          end: Alignment(0.6, 1),
-          colors: [AppColors.primary, AppColors.blueberry, AppColors.success],
-          stops: [0, 0.68, 1],
-        ),
-      ),
+      decoration: const BoxDecoration(color: AppColors.paletteBrown),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('WHAT TO ORDER', style: AppText.eyebrow(color: Colors.white.withValues(alpha: 0.72))),
+          Text(
+            'WHAT TO ORDER',
+            style: AppText.eyebrow(color: Colors.white.withValues(alpha: 0.72)),
+          ),
           const SizedBox(height: 12),
           for (final (index, line) in lines.indexed) ...[
             if (index > 0) const SizedBox(height: 12),
@@ -241,12 +321,25 @@ class OrderScript extends StatelessWidget {
                   height: 28,
                   margin: const EdgeInsets.only(top: 1),
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6)),
-                  child: Text('${index + 1}', style: AppText.label(color: AppColors.primary)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${index + 1}',
+                    style: AppText.label(color: AppColors.primary),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(line, style: const TextStyle(fontSize: 18, height: 26 / 18, fontWeight: FontWeight.w600, color: Colors.white)),
+                  child: Text(
+                    line,
+                    style: AppText.body(color: Colors.white).copyWith(
+                      fontSize: 18,
+                      height: 26 / 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -255,16 +348,30 @@ class OrderScript extends StatelessWidget {
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.only(top: 16),
-              decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.22)))),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('THE SWAPS', style: AppText.eyebrow(color: Colors.white.withValues(alpha: 0.68))),
+                  Text(
+                    'THE SWAPS',
+                    style: AppText.eyebrow(
+                      color: Colors.white.withValues(alpha: 0.68),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   for (final swap in swaps)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
-                      child: Text(swap, style: AppText.bodySm(color: Colors.white).copyWith(fontWeight: FontWeight.w600)),
+                      child: Text(
+                        swap,
+                        style: AppText.bodySm(
+                          color: Colors.white,
+                        ).copyWith(fontWeight: FontWeight.w600),
+                      ),
                     ),
                 ],
               ),
@@ -288,7 +395,11 @@ class DisclaimerNote extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          HugeIcon(icon: HugeIcons.strokeRoundedInformationCircle, size: 16, color: AppColors.mutedForeground),
+          HugeIcon(
+            icon: HugeIcons.strokeRoundedInformationCircle,
+            size: 16,
+            color: AppColors.mutedForeground,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

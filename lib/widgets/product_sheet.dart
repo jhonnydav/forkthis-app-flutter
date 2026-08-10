@@ -17,8 +17,13 @@ Future<T?> showProductSheet<T>(
     context: context,
     isScrollControlled: isScrollControlled,
     backgroundColor: AppColors.background,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-    constraints: BoxConstraints(maxWidth: 430, maxHeight: MediaQuery.of(context).size.height * 0.9),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    constraints: BoxConstraints(
+      maxWidth: 430,
+      maxHeight: MediaQuery.of(context).size.height * 0.9,
+    ),
     builder: (context) {
       return SafeArea(
         top: false,
@@ -37,14 +42,19 @@ Future<T?> showProductSheet<T>(
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(20, 20, 56, 16),
-              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border))),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: AppText.h2(color: AppColors.primary)),
                   if (description != null) ...[
                     const SizedBox(height: 4),
-                    Text(description, style: AppText.bodySm(color: AppColors.mutedForeground)),
+                    Text(
+                      description,
+                      style: AppText.bodySm(color: AppColors.mutedForeground),
+                    ),
                   ],
                 ],
               ),
@@ -53,8 +63,15 @@ Future<T?> showProductSheet<T>(
             if (footer != null)
               Container(
                 width: double.infinity,
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + MediaQuery.of(context).padding.bottom),
-                decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border))),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  16,
+                  20,
+                  20 + MediaQuery.of(context).padding.bottom,
+                ),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
                 child: footer,
               ),
           ],

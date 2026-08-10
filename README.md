@@ -1,6 +1,7 @@
-# Nutrition Platform — Flutter (native mobile)
+# ForkThis! — Flutter (native mobile)
 
-Native iOS/Android port of the coded design prototype at [`../app/`](../app/) (Vite/React/shadcn, web).
+Shared Flutter implementation for iOS, Android, and the browser demo. The earlier
+Vite prototype is archived at [`../archive-web-prototype/`](../archive-web-prototype/).
 Built 2026-07-31, superseding the earlier Expo + React Native Reusables plan in
 [`../docs/ENGINEERING-PLAN.md`](../docs/ENGINEERING-PLAN.md) §3.1 — Flutter is now the mobile stack
 decision.
@@ -8,11 +9,13 @@ decision.
 ```bash
 flutter pub get
 flutter run                 # any connected simulator/device
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 3213
+flutter build web
 flutter analyze             # 0 issues as of this writing
 ```
 
-Runs at native size on the iOS Simulator (verified on iPhone 17 Pro, iOS 26.5). No Android verification
-has been done yet.
+Runs at native size on the iOS Simulator (verified on iPhone 17 Pro, iOS 26.5) and
+as a responsive browser demo. No Android verification has been done yet.
 
 ---
 
@@ -156,6 +159,95 @@ missing safe-area insets. Only a rendered screenshot catches those.**
 
 ---
 
+## 2026-08-03 — warm food palette implementation (superseded below)
+
+Implemented the supplied six-color reference across the native Flutter app. The
+shared theme now uses off-white (`#F7F5F0`) for the page canvas, cream (`#F6E1C4`)
+for soft surfaces, orange (`#FF8C00`) for promotional emphasis, red-orange
+(`#DA4928`) for active states, yellow (`#FEC12C`) for appetite highlights, and dark
+brown (`#492219`) for type and icons. Compact filled controls and control boundaries
+use darker derivatives where the exact source accents do not meet WCAG 2.2 AA.
+
+Typography is now bundled locally as Archivo Black for campaign-scale display
+headlines and Manrope for UI, body copy, labels, and numeric data. The implementation
+also reduces card/button radii, keeps shadows limited to true overlays, and carries
+the color roles through splash, onboarding, Home, Eat Out, Cook, Track, profile,
+detail screens, notifications, search, and bottom navigation.
+
+## 2026-08-03 — client discovery feedback completion
+
+Reconciled the completed discovery CSV into an acceptance matrix at
+`docs/client-feedback-implementation-2026-08-03.md`. Added the missing three-step
+guided tour that starts after onboarding and can be replayed from Settings, a
+designed return-after-lapse experience after a three-day gap, and reminder opt-out
+behavior that removes and blocks reminder-class inbox items without hiding normal
+activity confirmations.
+
+Sensitive surgical context now defaults to `Prefer not to say`, separates that from
+`No surgical context`, and explains its educational-only local use. Profile now
+contains a neutral mission page without committing unapproved founder identities.
+Recipe details include calories, protein, carbs, fat, serving, and photography; the
+dense restaurant fixture now verifies the restaurant-first browse at 32 entries.
+Tentative gender, name, and founder answers remain pending rather than being presented
+as approved product decisions.
+
+## 2026-08-03 — citrus palette and image direction (superseded below)
+
+Replaced the earlier brown/orange palette with colors sampled directly from the
+client's citrus reference: Cosmic Latte (`#FFF4E0`), Spring Green (`#007531`),
+Yellow (`#FFE53A`), Sky Blue (`#07C1F2`), Yellow Green (`#AAE044`), and supporting
+Orange (`#F47B20`). Dark ink green (`#063D22`) and pale derivatives are used only
+where body-text or control-boundary contrast requires them.
+
+Brand and campaign surfaces now use flat citrus, leaf, peel-ribbon, and broad
+organic-shape illustration. Splash and the Home hero use custom assets in that
+direction. Restaurant orders and recipes keep bright real-food photography because
+those surfaces help users inspect and choose an actual meal.
+
+## 2026-08-03 — warm fruit-poster palette and image direction
+
+Rebalanced the visual system around the client's latest reference. The dominant
+brand colors are Margarine Yellow (`#F5D630`), Neon Orange (`#FF551D`), and Lava
+Red (`#CF161A`). Rose Bonbon (`#FE51A4`) and Lavender Indigo (`#9E5AFD`) are
+available only as limited accents. A warm cream canvas and dark auburn ink keep
+body copy and controls readable.
+
+Primary actions, selected navigation, focus states, and high-emphasis labels use
+Lava Red. Promotional surfaces use Neon Orange, while Margarine Yellow carries
+small highlights and status emphasis. The Splash and Home hero illustrations now
+use the reference's saturated retro fruit-poster direction with flat geometric food
+forms and subtle screen-print texture. Green is limited to natural leaf and success
+signals rather than acting as a brand-dominant field.
+
+## 2026-08-05 — React demo audit parity pass
+
+Synced the newer React demo completion work into the Flutter route graph. Track now
+has route-backed history and manual-log pages. You now has route-backed saved
+library, profile edit, settings, help, ask, privacy, and terms pages instead of
+requiring modal-only access. Logs now persist date, meal, and portion metadata so
+today and history can be separated, and profile settings include reminder time,
+dietary preferences, and location sorting preference.
+
+Verified with `flutter analyze`, `flutter test`, `flutter build web`, and a served
+web artifact at `http://127.0.0.1:3215/`.
+
+## 2026-08-03 — image-first onboarding and half-height Home hero
+
+The three onboarding introduction steps now use distinct 4:3 poster illustrations
+for restaurant ordering, personalized nutrition, and clinically grounded empathy.
+Each step keeps its action fixed at the bottom and uses a segmented red-on-neutral
+progress indicator. Standard screen canvases continue to use the shared off-white
+background token.
+
+Home now opens with a dedicated illustration sized to half of the usable viewport.
+The greeting, search action, value proposition, and restaurant-order actions sit in
+off-white bands above and below the image so the opening remains legible and gives
+the rest of the product room to enter the first scroll. Shared elevated, filled,
+outlined, and text buttons now use fully rounded stadium shapes; icon buttons use
+circles. Their 48–60 px touch targets remain borderless.
+
+---
+
 ## 2026-08-01 (2) — onboarding redesign + animations
 
 Redesigned the full onboarding flow (`lib/screens/onboarding/onboarding_screen.dart`,
@@ -164,6 +256,14 @@ screen. The user asked for "Framer Motion and Lenis"-quality animation; those ar
 JS-only libraries with no Flutter equivalent, so this uses Flutter's own animation
 system to the same end (confirmed with the user before starting — scope is the
 Flutter app, not the web prototype).
+
+## 2026-08-06 — ForkThis! moments and momentum
+
+Client direction now positions the product around real-life "ForkThis!" moments:
+eating out, cravings, low time, calories left, and returning after a lapse. The
+Flutter prototype includes a shared moment picker, branded `ForkThis!` copy,
+positive-only momentum points, behavior badges, and a celebratory comeback flow.
+Missed days do not reset progress or create broken-streak messaging.
 
 **The load-bearing fix**: every one of the 9 onboarding sub-steps used to build its
 own `AppShell`/`Scaffold`, and `go_router` rebuilds the same `/onboarding` route in
@@ -192,9 +292,8 @@ can never drift out of sync, and there is no controller to remember to `dispose(
 
 **Token-hygiene fix found along the way**: several onboarding widgets used bare
 `TextStyle(fontSize: ..., fontWeight: ...)` instead of `AppText.*`, which meant they
-silently lost Satoshi's letter-spacing when the font was swapped in an earlier pass
-that never touched this file. All given the same `-0.2` tracking the rest of the app
-uses at this size. Also swapped `Colors.white` for `AppColors.card` (identical
+could drift from the shared type system. They now use the same named text styles as
+the rest of the app. Also swapped `Colors.white` for `AppColors.card` (identical
 value, `0xFFFFFFFF`) for consistency with the rest of the app's token usage.
 
 **Verified**: `flutter analyze` clean throughout. On-device, walked Welcome → all 3
@@ -227,13 +326,9 @@ redesigns → prod-readiness) to keep each change bisectable:
   `IconData` field (`_TabDef`, `_GoalOption`, `_Metric`, `_MenuRow`,
   `_QuickLogRow`, `_StatCell`) had its field type changed to
   `List<List<dynamic>>` (`HugeIcon` takes JSON icon data, not `IconData`).
-- **Font**: Satoshi (Fontshare), bundled locally as `assets/fonts/Satoshi-*.ttf`
-  across its five real weights (300/400/500/700/900 — no 600 or 800 exist).
-  `theme/text_styles.dart` maps every style to one of those five faces rather than
-  letting Flutter synthesize an in-between weight, and applies small negative
-  letter-spacing (−0.2 body, −0.4 at 23px+) for the "small kerning" instruction.
-  Replaces the earlier Manrope/DM Sans `google_fonts` setup; that dependency was
-  removed since nothing else used it.
+- **Font (superseded 2026-08-03)**: this pass originally bundled Satoshi. The current
+  fresh fast-food direction replaces it with locally bundled Archivo Black for
+  display headlines and Manrope for all UI and body text; see the entry above.
 - **Redesigned Cook, Track, You**: kept each screen's state/data logic, refreshed
   the visual layer — tinted-circle icon badges (matching `FastHackCard`'s
   language), a nutrition-first "choose by mood" rail on Cook, a snapshot stat strip

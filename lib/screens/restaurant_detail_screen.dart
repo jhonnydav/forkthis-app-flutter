@@ -41,7 +41,7 @@ class RestaurantDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           SizedBox(
-            height: 258,
+            height: 288,
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -53,55 +53,72 @@ class RestaurantDetailScreen extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        AppColors.foreground.withValues(alpha: 0.82),
+                        AppColors.foreground.withValues(alpha: 0.85),
                       ],
-                      stops: const [0.28, 1],
+                      stops: const [0.24, 1],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 20,
+                  top: 20,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      restaurant.mark,
+                      style: AppText.caption(
+                        color: AppColors.primary,
+                      ).copyWith(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
                 Positioned(
                   left: 20,
                   right: 20,
-                  bottom: 20,
+                  bottom: 24,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         restaurant.category.toUpperCase(),
-                        style: AppText.eyebrow(color: AppColors.accent),
+                        style: AppText.kicker(color: Colors.white),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         restaurant.name,
-                        style: AppText.h1(color: Colors.white),
+                        style: AppText.headline(36, color: Colors.white),
                       ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 4,
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           if (restaurant.distanceMi != null) ...[
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const HugeIcon(
-                                  icon: HugeIcons.strokeRoundedLocation01,
-                                  size: 15,
-                                  color: Colors.white70,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  '${restaurant.distanceMi} mi away',
-                                  style: AppText.bodySm(color: Colors.white70),
-                                ),
-                              ],
+                            const HugeIcon(
+                              icon: HugeIcons.strokeRoundedLocation01,
+                              size: 15,
+                              color: Colors.white70,
                             ),
+                            const SizedBox(width: 5),
                           ],
-                          Text(
-                            hacks.isEmpty
-                                ? 'Menu review pending'
-                                : '${hacks.length} ${hacks.length == 1 ? "guide" : "guides"} available',
-                            style: AppText.bodySm(color: Colors.white70),
+                          Flexible(
+                            child: Text(
+                              [
+                                if (restaurant.distanceMi != null)
+                                  '${restaurant.distanceMi} mi away',
+                                hacks.isEmpty
+                                    ? 'Menu review pending'
+                                    : '${hacks.length} ${hacks.length == 1 ? "tested order" : "tested orders"}',
+                              ].join(' · '),
+                              style: AppText.label(color: Colors.white),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -112,60 +129,67 @@ class RestaurantDetailScreen extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 28, 20, 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  'ORDER WITH CONTEXT',
-                  style: AppText.eyebrow(color: AppColors.primary),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'START WITH THE OUTCOME',
+                        style: AppText.kicker(color: AppColors.primary),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        hacks.isEmpty
+                            ? 'We are still reviewing this menu'
+                            : 'Orders that work',
+                        style: AppText.headline(36),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  hacks.isEmpty
-                      ? 'We are still reviewing this menu'
-                      : 'The useful choices first',
-                  style: AppText.h2(),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  hacks.isEmpty
-                      ? 'Try another nearby place while we add verified menu guidance here.'
-                      : 'Each option includes exactly what to order, the high-impact swaps, and nutrition estimates.',
-                  style: AppText.bodySm(color: AppColors.mutedForeground),
-                ),
+                if (hacks.isNotEmpty) Text('Swipe', style: AppText.caption()),
               ],
             ),
           ),
           if (hacks.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => context.go('/eat-out'),
-                  child: const Text('Browse other places'),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Try another nearby place while we add verified menu guidance here.',
+                    style: AppText.bodySm(color: AppColors.mutedForeground),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/eat-out'),
+                      child: const Text('Browse other places'),
+                    ),
+                  ),
+                ],
               ),
             )
           else
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [for (final hack in hacks) _OrderRow(hack: hack)],
+            SizedBox(
+              height: 346,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: hacks.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) => _OrderCard(hack: hacks[index]),
               ),
             ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.mint,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const DisclaimerNote(),
-            ),
+            child: const DisclaimerNote(),
           ),
         ],
       ),
@@ -173,62 +197,94 @@ class RestaurantDetailScreen extends StatelessWidget {
   }
 }
 
-class _OrderRow extends StatelessWidget {
+/// Horizontal "start with the outcome" rail — Figma node 321:2729, an orange
+/// card per order with a goal-fit chip, dish title, and a cal/protein +
+/// arrow footer below a hairline divider.
+class _OrderCard extends StatelessWidget {
   final FastHack hack;
-  const _OrderRow({required this.hack});
+  const _OrderCard({required this.hack});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       onTap: () => context.push('/hack/${hack.id}'),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border)),
+        width: 309,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: AppColors.secondary,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              child: Image.asset(
-                hack.image,
-                width: 92,
-                height: 92,
-                fit: BoxFit.cover,
-              ),
+            SizedBox(
+              height: 160,
+              width: double.infinity,
+              child: Image.asset(hack.image, fit: BoxFit.cover),
             ),
-            const SizedBox(width: 14),
+            // Expanded + a scrollable inner column, not a fixed-height
+            // Padding — at large text scales (NFR-2) the badge/title/footer
+            // stack can exceed the remaining card height, and this rail
+            // sits inside a fixed-height horizontal ListView so it cannot
+            // just grow taller. Scrolling internally avoids the blank-screen
+            // class of bug from an unbounded Row/Column overflow.
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    hack.title,
-                    style: AppText.h3(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '${hack.calories} cal  ·  ${hack.protein}g protein',
-                    style: AppText.caption(color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 8),
-                  if (hack.goals.isNotEmpty)
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (hack.goals.isNotEmpty)
+                      GoalFitBadge(goal: hack.goals.first),
+                    const SizedBox(height: 12),
                     Text(
-                      goalLabel[hack.goals.first]!,
-                      style: AppText.caption(color: AppColors.success),
+                      hack.title,
+                      style: AppText.h3(),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                ],
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.only(top: 36),
-              child: HugeIcon(
-                icon: HugeIcons.strokeRoundedArrowRight01,
-                size: 18,
-                color: AppColors.primary,
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.only(top: 12),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: AppColors.foreground),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${hack.calories} cal',
+                              style: AppText.button(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              '${hack.protein}g protein',
+                              style: AppText.caption(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Spacer(),
+                          const HugeIcon(
+                            icon: HugeIcons.strokeRoundedArrowRight01,
+                            size: 20,
+                            color: AppColors.foreground,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

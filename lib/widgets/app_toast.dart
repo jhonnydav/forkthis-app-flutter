@@ -13,6 +13,8 @@ void showAppToast(
   String? description,
   bool persistent = false,
   bool addToInbox = true,
+  String? actionLabel,
+  VoidCallback? onAction,
 }) {
   if (addToInbox) {
     context.read<AppState>().addNotification(
@@ -28,6 +30,8 @@ void showAppToast(
       message: message,
       description: description,
       persistent: persistent,
+      actionLabel: actionLabel,
+      onAction: onAction,
       onDismissed: () {
         if (entry.mounted) entry.remove();
         if (identical(_activeToast, entry)) _activeToast = null;
@@ -43,11 +47,15 @@ class _ToastBanner extends StatefulWidget {
   final String? description;
   final bool persistent;
   final VoidCallback onDismissed;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   const _ToastBanner({
     required this.message,
     this.description,
     required this.persistent,
     required this.onDismissed,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
@@ -156,6 +164,18 @@ class _ToastBannerState extends State<_ToastBanner>
                         ],
                       ),
                     ),
+                    if (widget.actionLabel != null)
+                      TextButton(
+                        onPressed: () {
+                          widget.onAction?.call();
+                          _dismiss();
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.accent,
+                          textStyle: AppText.label(color: AppColors.accent),
+                        ),
+                        child: Text(widget.actionLabel!),
+                      ),
                     IconButton(
                       onPressed: _dismiss,
                       tooltip: 'Dismiss',

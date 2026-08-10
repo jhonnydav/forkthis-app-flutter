@@ -8,14 +8,22 @@ class Skeleton extends StatelessWidget {
   final double height;
   final double radius;
 
-  const Skeleton({super.key, this.width = double.infinity, this.height = 16, this.radius = AppRadius.md});
+  const Skeleton({
+    super.key,
+    this.width = double.infinity,
+    this.height = 16,
+    this.radius = AppRadius.md,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: width,
       height: height,
-      decoration: BoxDecoration(color: AppColors.muted, borderRadius: BorderRadius.circular(radius)),
+      decoration: BoxDecoration(
+        color: AppColors.muted,
+        borderRadius: BorderRadius.circular(radius),
+      ),
     );
   }
 }

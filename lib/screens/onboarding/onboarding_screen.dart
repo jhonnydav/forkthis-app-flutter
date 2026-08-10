@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -6,10 +7,12 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../../data/fixtures.dart';
 import '../../state/app_state.dart';
+import '../../product.dart';
 import '../../theme/tokens.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/app_shell.dart';
 import '../../widgets/product_sheet.dart';
+import '../auth_screen.dart';
 
 /// Ported step-for-step from `../app/src/screens/Onboarding.tsx`. Step numbers and
 /// their meaning match the web app's `?step=N` exactly:
@@ -39,7 +42,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final weightLb = TextEditingController(text: '185');
   final heightCm = TextEditingController(text: '178');
   final weightKg = TextEditingController(text: '84');
-  String surgical = 'recover';
+  String surgical = 'prefer_not';
   String activity = 'lightly';
 
   int get age {
@@ -110,7 +113,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _stepContent(int step) {
     if (step == 0) return _WelcomeContent(onNext: () => go(1));
     if (step >= 1 && step <= 3) {
-      return _IntroContent(index: step - 1, onNext: () => go(step + 1));
+      // Step 3 is the last intro slide ("Let's Begin") — account creation
+      // gates the questionnaire from here rather than sitting at the very
+      // end of onboarding, so the flow is splash → onboarding intro →
+      // account creation (with a sign-in option) → questionnaire → home tour.
+      final onNext = step == 3
+          ? () => openCreateAccountSheet(context, resumeAtStep: 4)
+          : () => go(step + 1);
+      return _IntroContent(index: step - 1, onNext: onNext);
     }
     if (step == 4) return _AgeStep(state: this);
     if (step == 5) return _GoalStep(state: this);
@@ -142,14 +152,32 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final step = widget.step.clamp(0, 9);
     return AppShell(
       tabBar: false,
-      child: SafeArea(
-        bottom: false,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 420),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: _stepTransition,
-          child: KeyedSubtree(key: ValueKey(step), child: _stepContent(step)),
+      child: ColoredBox(
+        // Figma's onboarding canvas (node 321:48) sits on Highlight (#FFF4E0),
+        // one step warmer than the app's usual Background — distinguishes the
+        // flow from the rest of the app while the value-prop slides' full-bleed
+        // photos sit on top of it.
+        color: AppColors.highlight,
+        child: SafeArea(
+          // Steps 0-3 (welcome + intro slides) are full-bleed photo screens that
+          // already run their own inner SafeArea around their text — consuming
+          // the top inset again here paints a solid Highlight rectangle behind
+          // the status bar instead of letting the photo run edge-to-edge under
+          // it, so those steps skip the outer top inset entirely.
+          top: step > 3,
+          bottom: false,
+          child: SizedBox.expand(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 420),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: _stepTransition,
+              child: KeyedSubtree(
+                key: ValueKey(step),
+                child: _stepContent(step),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -164,7 +192,7 @@ class _BottomActionArea extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        color: AppColors.background,
+        color: AppColors.highlight,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: SafeArea(
@@ -191,13 +219,15 @@ class _Progress extends StatelessWidget {
         children: List.generate(total, (i) {
           return Expanded(
             child: Container(
-              margin: EdgeInsets.only(right: i == total - 1 ? 0 : 6),
+              margin: EdgeInsets.only(right: i == total - 1 ? 0 : 7),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOut,
-                height: 6,
+                height: 5,
                 decoration: BoxDecoration(
-                  color: i < current ? AppColors.primary : AppColors.secondary,
+                  color: i < current
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
               ),
@@ -205,6 +235,31 @@ class _Progress extends StatelessWidget {
           );
         }),
       ),
+    );
+  }
+}
+
+class _IntroProgress extends StatelessWidget {
+  final int current;
+  const _IntroProgress({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(3, (index) {
+        final active = index < current;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          width: active ? 19 : 18,
+          height: 5,
+          margin: EdgeInsets.only(right: index == 2 ? 0 : 5),
+          decoration: BoxDecoration(
+            color: active ? AppColors.primary : AppColors.border,
+            borderRadius: BorderRadius.circular(AppRadius.pill),
+          ),
+        );
+      }),
     );
   }
 }
@@ -241,7 +296,8 @@ const _introSteps = [
     body:
         'Real life happens. We show you exactly what to order at your favorite restaurants to stay entirely on track, completely guilt-free.',
     accent: true,
-    icon: HugeIcons.strokeRoundedRestaurant01,
+    image: 'assets/images/figma/onboarding-fast-order-photo.png',
+    visualLabel: 'Opening a grilled chicken order in a white takeaway box',
   ),
   (
     badge: 'Tailored to you',
@@ -249,7 +305,8 @@ const _introSteps = [
     body:
         'No cookie-cutter templates. Your nutritional plans adapt to your unique body stats, goals, and specific medical or surgical context.',
     accent: false,
-    icon: HugeIcons.strokeRoundedTarget01,
+    image: 'assets/images/figma/onboarding-personalized-bowl-photo.png',
+    visualLabel: 'Balanced chicken grain bowl with orange and avocado',
   ),
   (
     badge: 'Built by people who get it',
@@ -257,32 +314,10 @@ const _introSteps = [
     body:
         'Co-founded by a renowned plastic surgeon and a weight health creator who lived the 260 lb loss journey. Pure support, zero intimidation.',
     accent: true,
-    icon: HugeIcons.strokeRoundedFavourite,
+    image: 'assets/images/figma/onboarding-clinical-empathy-photo.png',
+    visualLabel: 'Two people sharing a warm chicken and quinoa bowl',
   ),
 ];
-
-/// A single large tinted glyph behind the copy — the app's icon-forward language
-/// (already used on Home/Cook/Track/You) carried into onboarding without inventing
-/// new photography or illustration for a flow that previously had none at all.
-class _HeroGlyph extends StatelessWidget {
-  final List<List<dynamic>> icon;
-  final Color tint;
-  const _HeroGlyph({required this.icon, required this.tint});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 84,
-      height: 84,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: tint,
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
-      ),
-      child: HugeIcon(icon: icon, size: 38, color: AppColors.primary),
-    );
-  }
-}
 
 class _WelcomeContent extends StatelessWidget {
   final VoidCallback onNext;
@@ -290,89 +325,80 @@ class _WelcomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Stack(
+      fit: StackFit.expand,
       children: [
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 60,
+        Image.asset(
+          'assets/images/figma/onboarding-forkthis-first-screen-v2.png',
+          fit: BoxFit.cover,
+          alignment: Alignment.center,
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _IntroProgress(current: 0),
+                const Spacer(),
+                Container(
+                  width: 64,
+                  height: 64,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                  ),
+                  child: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedFavourite,
+                    size: 30,
+                    color: AppColors.primary,
+                  ),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _HeroGlyph(
-                          icon: HugeIcons.strokeRoundedFavourite,
-                          tint: AppColors.accent,
-                        )
-                        .animate()
-                        .fadeIn(duration: 420.ms, curve: Curves.easeOut)
-                        .slideY(
-                          begin: 0.15,
-                          end: 0,
-                          duration: 420.ms,
-                          curve: Curves.easeOutCubic,
-                        ),
-                    const SizedBox(height: 24),
-                    ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 350),
-                          child: Text(
-                            'Your turning point starts here.',
-                            style: AppText.h1(color: AppColors.primary),
-                          ),
-                        )
-                        .animate()
-                        .fadeIn(
-                          delay: 80.ms,
-                          duration: 420.ms,
-                          curve: Curves.easeOut,
-                        )
-                        .slideY(
-                          begin: 0.12,
-                          end: 0,
-                          delay: 80.ms,
-                          duration: 420.ms,
-                          curve: Curves.easeOutCubic,
-                        ),
-                    const SizedBox(height: 16),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 350),
-                      child: Text(
-                        'A warmer, scientifically credible home for sustainable weight health. No paywalls, no judgment.',
-                        style: AppText.bodySm(color: AppColors.mutedForeground),
+                const SizedBox(height: 18),
+                Text(
+                      'Your ForkThis! moment starts here.',
+                      style: AppText.headline(
+                        42,
+                        height: 44,
+                        color: AppColors.primary,
                       ),
-                    ).animate().fadeIn(delay: 150.ms, duration: 420.ms),
-                  ],
+                    )
+                    .animate()
+                    .fadeIn(delay: 80.ms, duration: 420.ms)
+                    .slideY(
+                      begin: 0.12,
+                      end: 0,
+                      delay: 80.ms,
+                      duration: 420.ms,
+                      curve: Curves.easeOutCubic,
+                    ),
+                const SizedBox(height: 14),
+                Text(
+                  '$productName helps you choose what to order or cook when real life puts your healthier habits on the spot.',
+                  style: AppText.bodySm(
+                    color: AppColors.textPrimary,
+                  ).copyWith(height: 1.38),
                 ),
-              ),
+                const SizedBox(height: 16),
+                _PillButton(label: 'Get Started', onPressed: onNext),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 56,
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _showDataInfo(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.borderStrong),
+                      backgroundColor: AppColors.card.withValues(alpha: 0.86),
+                    ),
+                    child: const Text('How your data is stored'),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        _BottomActionArea(
-          children: [
-            _PillButton(label: 'Get Started', onPressed: onNext)
-                .animate()
-                .fadeIn(delay: 230.ms, duration: 380.ms)
-                .slideY(
-                  begin: 0.1,
-                  end: 0,
-                  delay: 230.ms,
-                  duration: 380.ms,
-                  curve: Curves.easeOutCubic,
-                ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 56,
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => _showDataInfo(context),
-                child: const Text('How your data is stored'),
-              ),
-            ).animate().fadeIn(delay: 290.ms, duration: 380.ms),
-          ],
         ),
       ],
     );
@@ -412,96 +438,83 @@ class _IntroContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final item = _introSteps[index];
-    return Column(
-      children: [
-        _Progress(current: index + 1, total: 3),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight - 48,
-                ),
+    return Semantics(
+      button: true,
+      label: index == 2 ? "Let's Begin" : 'Next',
+      onTap: onNext,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onNext,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              item.image,
+              fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
+              semanticLabel: item.visualLabel,
+            ).animate(key: ValueKey('photo$index')).fadeIn(duration: 300.ms),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _HeroGlyph(
-                          icon: item.icon,
-                          tint: item.accent
-                              ? AppColors.accent
-                              : AppColors.secondary,
-                        )
-                        .animate(key: ValueKey('glyph$index'))
-                        .fadeIn(duration: 380.ms, curve: Curves.easeOut)
-                        .slideY(
-                          begin: 0.15,
-                          end: 0,
-                          duration: 380.ms,
-                          curve: Curves.easeOutCubic,
-                        ),
-                    const SizedBox(height: 20),
+                    _IntroProgress(current: index + 1),
+                    const Spacer(),
                     Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: item.accent
-                                ? AppColors.accent
-                                : AppColors.secondary,
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                          child: Text(
-                            item.badge.toUpperCase(),
-                            style: AppText.caption(
-                              color: AppColors.primary,
-                            ).copyWith(fontWeight: FontWeight.w700),
-                          ),
-                        )
-                        .animate(key: ValueKey('badge$index'))
-                        .fadeIn(delay: 60.ms, duration: 340.ms),
-                    const SizedBox(height: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        item.badge.toUpperCase(),
+                        style: AppText.kicker(color: AppColors.primary),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                           item.title,
-                          style: AppText.h1(color: AppColors.primary),
+                          style: AppText.headline(
+                            39,
+                            height: 41,
+                            color: AppColors.primary,
+                          ),
                         )
                         .animate(key: ValueKey('title$index'))
-                        .fadeIn(delay: 110.ms, duration: 340.ms)
+                        .fadeIn(delay: 70.ms, duration: 280.ms)
                         .slideY(
-                          begin: 0.1,
+                          begin: 0.07,
                           end: 0,
-                          delay: 110.ms,
-                          duration: 340.ms,
+                          delay: 70.ms,
+                          duration: 280.ms,
                           curve: Curves.easeOutCubic,
                         ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(
                           item.body,
                           style: AppText.bodySm(
-                            color: AppColors.mutedForeground,
-                          ),
+                            color: AppColors.textPrimary,
+                          ).copyWith(height: 1.38),
                         )
                         .animate(key: ValueKey('body$index'))
-                        .fadeIn(delay: 160.ms, duration: 340.ms),
+                        .fadeIn(delay: 120.ms, duration: 280.ms),
+                    const SizedBox(height: 12),
+                    _PillButton(
+                      label: index == 2 ? "Let's Begin" : 'Next',
+                      onPressed: onNext,
+                    ),
                   ],
                 ),
               ),
             ),
-          ),
-        ),
-        _BottomActionArea(
-          children: [
-            _PillButton(
-                  label: index == 2 ? "Let's Begin" : 'Next',
-                  onPressed: onNext,
-                )
-                .animate(key: ValueKey('cta$index'))
-                .fadeIn(delay: 220.ms, duration: 340.ms),
           ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -532,18 +545,30 @@ class _QuestionFrameContent extends StatelessWidget {
         _Progress(current: step, total: 5),
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(24, compact ? 20 : 28, 24, 28),
+            padding: EdgeInsets.fromLTRB(20, compact ? 16 : 22, 20, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Questionnaire $step of 5',
-                  style: AppText.bodySm(
-                    color: AppColors.questionnaireLabel,
-                  ).copyWith(fontWeight: FontWeight.w700),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text(
+                    'Question $step of 5'.toUpperCase(),
+                    style: AppText.kicker(color: AppColors.primary),
+                  ),
                 ).animate(key: ValueKey('label$step')).fadeIn(duration: 300.ms),
-                const SizedBox(height: 8),
-                Text(title, style: AppText.h1(color: AppColors.primary))
+                const SizedBox(height: 14),
+                Text(
+                      title,
+                      style: AppText.headline(38, color: AppColors.primary),
+                    )
                     .animate(key: ValueKey('title$step'))
                     .fadeIn(delay: 40.ms, duration: 320.ms)
                     .slideY(
@@ -554,15 +579,17 @@ class _QuestionFrameContent extends StatelessWidget {
                       curve: Curves.easeOutCubic,
                     ),
                 if (description != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                         description!,
-                        style: AppText.body(color: AppColors.mutedForeground),
+                        style: AppText.bodySm(
+                          color: AppColors.mutedForeground,
+                        ).copyWith(height: 1.35),
                       )
                       .animate(key: ValueKey('desc$step'))
                       .fadeIn(delay: 90.ms, duration: 320.ms),
                 ],
-                SizedBox(height: compact ? 16 : 24),
+                SizedBox(height: compact ? 18 : 26),
                 child
                     .animate(key: ValueKey('body$step'))
                     .fadeIn(delay: 140.ms, duration: 320.ms),
@@ -609,19 +636,19 @@ class _GoalOptionState extends State<_GoalOption> {
       duration: const Duration(milliseconds: 120),
       curve: Curves.easeOut,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         onTap: widget.onTap,
         onHighlightChanged: (v) => setState(() => _pressed = v),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           constraints: const BoxConstraints(minHeight: 107),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(20),
+            color: widget.selected ? AppColors.accent : AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(
-              color: widget.selected ? AppColors.primary : AppColors.border,
+              color: widget.selected ? AppColors.action : AppColors.border,
               width: widget.selected ? 2 : 1,
             ),
           ),
@@ -634,11 +661,16 @@ class _GoalOptionState extends State<_GoalOption> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: widget.selected
-                      ? AppColors.accent
-                      : AppColors.background,
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                      ? AppColors.primary
+                      : AppColors.highlight,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: HugeIcon(icon: widget.icon, color: AppColors.primary),
+                child: HugeIcon(
+                  icon: widget.icon,
+                  color: widget.selected
+                      ? AppColors.primaryForeground
+                      : AppColors.primary,
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -648,28 +680,25 @@ class _GoalOptionState extends State<_GoalOption> {
                     Text(
                       widget.title,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontFamily: 'Satoshi',
+                        fontSize: 22,
+                        height: 27 / 22,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
-                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.body,
-                      style: AppText.bodySm(color: AppColors.mutedForeground),
+                      style: const TextStyle(
+                        fontFamily: 'Satoshi',
+                        fontSize: 14,
+                        height: 15 / 14,
+                        fontWeight: FontWeight.w300,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
-                ),
-              ),
-              AnimatedScale(
-                scale: widget.selected ? 1 : 0,
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutBack,
-                child: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedCheckmarkCircle01,
-                  size: 22,
-                  color: AppColors.primary,
                 ),
               ),
             ],
@@ -708,21 +737,23 @@ class _SelectOptionState extends State<_SelectOption> {
       duration: const Duration(milliseconds: 120),
       curve: Curves.easeOut,
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.xxl),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         onTap: widget.onTap,
         onHighlightChanged: (v) => setState(() => _pressed = v),
         child: Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          constraints: BoxConstraints(minHeight: widget.compact ? 66 : 74),
+          margin: const EdgeInsets.only(bottom: 10),
+          constraints: BoxConstraints(minHeight: widget.compact ? 74 : 78),
           padding: EdgeInsets.symmetric(
             horizontal: 16,
             vertical: widget.compact ? 12 : 16,
           ),
           decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            color: widget.selected
+                ? AppColors.accent.withValues(alpha: 0.92)
+                : AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(
-              color: widget.selected ? AppColors.primary : AppColors.border,
+              color: widget.selected ? AppColors.action : AppColors.border,
               width: widget.selected ? 2 : 1,
             ),
           ),
@@ -734,17 +765,29 @@ class _SelectOptionState extends State<_SelectOption> {
                   children: [
                     Text(
                       widget.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
+                      style: TextStyle(
+                        fontFamily: 'Satoshi',
+                        fontSize: widget.compact ? 18 : 16,
+                        height: 24 / (widget.compact ? 18 : 16),
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    Text(widget.body, style: AppText.caption()),
+                    Text(
+                      widget.body,
+                      style: const TextStyle(
+                        fontFamily: 'Satoshi',
+                        fontSize: 13,
+                        height: 18 / 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
               AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
@@ -754,12 +797,12 @@ class _SelectOptionState extends State<_SelectOption> {
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: widget.selected
-                        ? AppColors.primary
-                        : AppColors.border,
+                        ? AppColors.action
+                        : AppColors.borderStrong,
                     width: 2,
                   ),
                   color: widget.selected
-                      ? AppColors.primary
+                      ? AppColors.action
                       : Colors.transparent,
                 ),
                 child: AnimatedScale(
@@ -812,7 +855,7 @@ class _AgeStepState extends State<_AgeStep> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             onTap: () async {
               HapticFeedback.selectionClick();
               final picked = await showDatePicker(
@@ -827,30 +870,33 @@ class _AgeStepState extends State<_AgeStep> {
               height: 64,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.xxl),
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 border: Border.all(color: AppColors.border, width: 1.5),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Date of Birth',
                     style: TextStyle(
+                      fontFamily: 'Satoshi',
                       fontSize: 18,
+                      height: 28 / 18,
+                      fontWeight: FontWeight.w500,
                       color: AppColors.primary,
-                      letterSpacing: -0.2,
                     ),
                   ),
                   Row(
                     children: [
                       Text(
                         formatted,
-                        style: const TextStyle(
+                        style: TextStyle(
+                          fontFamily: 'Satoshi',
                           fontSize: 18,
+                          height: 28 / 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
-                          letterSpacing: -0.2,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -988,6 +1034,8 @@ class _StatsStepState extends State<_StatsStep> {
     return _QuestionFrameContent(
       step: 3,
       title: 'What are your stats?',
+      description:
+          'Use what you know today — you can always update this later.',
       onAction: valid
           ? () {
               context.read<AppState>().updateProfile(
@@ -1005,8 +1053,8 @@ class _StatsStepState extends State<_StatsStep> {
             height: 44,
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppColors.secondary,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              color: AppColors.secondary.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Row(
               children: [
@@ -1122,12 +1170,16 @@ class _UnitToggle extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: active ? AppColors.card : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
         child: Text(
           label,
-          style: AppText.bodySm(
-            color: active ? AppColors.blueberry : AppColors.mutedForeground,
+          style: TextStyle(
+            fontFamily: 'Satoshi',
+            fontSize: 14,
+            height: 20 / 14,
+            fontWeight: FontWeight.w500,
+            color: active ? AppColors.primary : AppColors.textPrimary,
           ),
         ),
       ),
@@ -1151,15 +1203,17 @@ class _UnitInput extends StatelessWidget {
       controller: controller,
       onChanged: onChanged,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
+      style: AppText.label(
         color: AppColors.primary,
-        letterSpacing: -0.2,
-      ),
+      ).copyWith(fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         suffixText: unit,
-        suffixStyle: AppText.bodySm(color: AppColors.mutedForeground),
+        suffixStyle: const TextStyle(
+          fontFamily: 'Satoshi',
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: AppColors.textSecondary,
+        ),
       ),
     );
   }
@@ -1180,7 +1234,7 @@ class _SurgicalStepState extends State<_SurgicalStep> {
       step: 4,
       title: 'Any surgical context?',
       description:
-          'Our clinical founder co-designed this platform to ensure safe nutritional support before or after surgical weight-loss procedures.',
+          'Optional. This only changes the educational context we show before or after surgery, and you can update it later.',
       onAction: () {
         context.read<AppState>().updateProfile(surgical: s.surgical);
         s.go(8);
@@ -1204,36 +1258,31 @@ class _SurgicalStepState extends State<_SurgicalStep> {
           ),
           _SelectOption(
             compact: true,
-            title: 'No / prefer not to say',
+            title: 'No surgical context',
             body: 'Standard, healthy lifestyle guidance',
             selected: s.surgical == 'none',
             onTap: () => setState(() => s.surgical = 'none'),
           ),
+          _SelectOption(
+            compact: true,
+            title: 'Prefer not to say',
+            body: 'Continue without tailoring this information',
+            selected: s.surgical == 'prefer_not',
+            onTap: () => setState(() => s.surgical = 'prefer_not'),
+          ),
           const SizedBox(height: 8),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.hackWhySurface,
-              borderRadius: BorderRadius.circular(AppRadius.xxl),
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const HugeIcon(
-                  icon: HugeIcons.strokeRoundedShield01,
-                  size: 20,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Your details are kept securely with clinical-grade safety. We never sell your health metrics.',
-                    style: AppText.bodySm(
-                      color: AppColors.primary,
-                    ).copyWith(fontSize: 13),
-                  ),
-                ),
-              ],
+            child: Text(
+              'This answer stays in local app storage in this build. It is used for educational context only, not diagnosis or medical advice. You can change it later.',
+              style: AppText.bodySm(
+                color: AppColors.primary,
+              ).copyWith(fontSize: 13),
             ),
           ),
         ],
@@ -1311,8 +1360,8 @@ const _planExitDelay = Duration(milliseconds: 650);
 /// that a new user should go "straight to the App where it will walk them through
 /// important features" — no summary, no first-recommendation screen. This replaces
 /// the earlier ~7s orbiting-progress design with the shortest beat that still reads
-/// as intentional rather than a hard cut. The next step is the guided tour (App
-/// Flow S-10, not yet built) picking up on Home immediately after this.
+/// as intentional rather than a hard cut. The guided tour then picks up on Home
+/// immediately after this transition.
 class _LoadingPlanContent extends StatefulWidget {
   const _LoadingPlanContent();
   @override
@@ -1320,15 +1369,29 @@ class _LoadingPlanContent extends StatefulWidget {
 }
 
 class _LoadingPlanContentState extends State<_LoadingPlanContent> {
+  Timer? _timer;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(_planExitDelay, () {
+    _timer = Timer(_planExitDelay, () {
       if (mounted) {
-        context.read<AppState>().completeOnboarding();
-        context.go('/home');
+        // Account creation already happened right after the intro slides
+        // (see `_stepContent`'s step-3 gate), so by the time the
+        // questionnaire finishes there is nothing left to sign up for —
+        // go straight to the loading beat and then Home's tour.
+        final state = context.read<AppState>();
+        state.markOnboardingStep(9);
+        state.completeOnboarding();
+        context.go('/loading');
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   @override
@@ -1342,7 +1405,7 @@ class _LoadingPlanContentState extends State<_LoadingPlanContent> {
             height: 28,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
-              valueColor: AlwaysStoppedAnimation(AppColors.primary),
+              valueColor: AlwaysStoppedAnimation(AppColors.brandBlue),
             ),
           ).animate().fadeIn(duration: 220.ms),
           const SizedBox(height: 16),
@@ -1351,6 +1414,65 @@ class _LoadingPlanContentState extends State<_LoadingPlanContent> {
             style: AppText.bodySm(color: AppColors.mutedForeground),
           ).animate().fadeIn(delay: 80.ms, duration: 220.ms),
         ],
+      ),
+    );
+  }
+}
+
+class LoadingPlanScreen extends StatefulWidget {
+  final bool returning;
+  const LoadingPlanScreen({super.key, this.returning = false});
+
+  @override
+  State<LoadingPlanScreen> createState() => _LoadingPlanScreenState();
+}
+
+class _LoadingPlanScreenState extends State<LoadingPlanScreen> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(_planExitDelay, () {
+      if (mounted) context.go('/home');
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppShell(
+      tabBar: false,
+      child: ColoredBox(
+        color: AppColors.highlight,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                widget.returning
+                    ? 'Refreshing your next ForkThis! moment...'
+                    : 'Building your first set of picks...',
+                textAlign: TextAlign.center,
+                style: AppText.bodySm(color: AppColors.mutedForeground),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1402,7 +1524,7 @@ class OnboardingResumeScreen extends StatelessWidget {
                     ).animate().fadeIn(delay: 120.ms, duration: 380.ms),
                     const SizedBox(height: 16),
                     Text(
-                      'Nutrition Platform keeps partial answers on this device for 30 days.',
+                      '$productName keeps partial answers on this device for 30 days.',
                       style: AppText.caption(),
                     ),
                   ],

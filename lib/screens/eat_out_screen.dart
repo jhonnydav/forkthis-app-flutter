@@ -8,9 +8,12 @@ import '../state/app_state.dart';
 import '../theme/text_styles.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_shell.dart';
+import '../widgets/ask_entry.dart';
 import '../widgets/app_toast.dart';
+import '../widgets/figma_components.dart';
 import '../widgets/primitives.dart';
 import '../widgets/product_sheet.dart';
+import '../widgets/states.dart';
 
 const _categoryImages = <String, String>{
   'Chicken': 'assets/images/eat-out/category-chicken-transparent-v3.png',
@@ -95,6 +98,10 @@ class _EatOutScreenState extends State<EatOutScreen> {
 
   void _scheduleLocationPrompt() {
     if (widget.view != 'nearby' || _locationPromptShown) return;
+    // FR-20 — "without permission the experience degrades to manual browse
+    // with no nagging". Once the user has answered, we never ask again from
+    // here; the only way back is the explicit control in Settings.
+    if (context.read<AppState>().locationPromptSeen) return;
     _locationPromptShown = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) showLocationSheet(context, () {});
@@ -107,7 +114,7 @@ class _EatOutScreenState extends State<EatOutScreen> {
     final state = context.watch<AppState>();
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: AppShell(
         scrollTitle: 'Eat out',
         scrollEyebrow: 'SMART ORDERS',
@@ -117,7 +124,28 @@ class _EatOutScreenState extends State<EatOutScreen> {
             _EatOutHero(onSearch: () => context.push('/search')),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-              child: _ViewControl(view: widget.view, onChanged: _setView),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: SegmentedPills<String>(
+                      values: const ['restaurant', 'goal', 'nearby'],
+                      selected: widget.view,
+                      labelFor: (v) => switch (v) {
+                        'goal' => 'By goal',
+                        'nearby' => 'Nearest',
+                        _ => 'For you',
+                      },
+                      onChanged: _setView,
+                      trackColor: AppColors.highlight,
+                      activeColor: AppColors.card,
+                      activeForeground: AppColors.primary,
+                      inactiveForeground: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const AskPill(),
+                ],
+              ),
             ),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 260),
@@ -155,6 +183,10 @@ class _EatOutScreenState extends State<EatOutScreen> {
   }
 }
 
+/// Figma node 321:1671 "Header" — shared verbatim by the Browse & Discover
+/// and Start with an Order pulls (321:1671, 321:2468 both show identical
+/// eyebrow/headline/body copy), so this hero is the header for all three
+/// Eat Out tabs, not just "For you".
 class _EatOutHero extends StatelessWidget {
   final VoidCallback onSearch;
   const _EatOutHero({required this.onSearch});
@@ -162,7 +194,7 @@ class _EatOutHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(color: AppColors.primary),
+      decoration: const BoxDecoration(color: AppColors.background),
       child: SafeArea(
         bottom: false,
         child: Padding(
@@ -171,150 +203,102 @@ class _EatOutHero extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const HugeIcon(
-                    icon: HugeIcons.strokeRoundedLocation01,
-                    size: 15,
-                    color: AppColors.accent,
-                  ),
-                  const SizedBox(width: 7),
                   Expanded(
-                    child: Text(
-                      'ASHBURN, VIRGINIA',
-                      style: AppText.eyebrow(color: AppColors.accent),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const HugeIcon(
+                              icon: HugeIcons.strokeRoundedLocation01,
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'ASHBURN, VIRGINIA',
+                              style: AppText.kicker(color: AppColors.primary),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Eat well, wherever you are.',
+                          style: AppText.headline(
+                            42,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: onSearch,
-                    tooltip: 'Search meals and restaurants',
-                    icon: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedSearch01,
-                      color: Colors.white,
+                  const SizedBox(width: 12),
+                  InkWell(
+                    onTap: onSearch,
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        color: AppColors.foreground,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const HugeIcon(
+                        icon: HugeIcons.strokeRoundedSearch01,
+                        size: 20,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               Text(
-                'A better order,\nwithout the homework.',
-                style: AppText.h1(color: Colors.white),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Use the restaurant you already chose. We will show the useful swaps and what to say at the counter.',
-                style: AppText.bodySm(color: Colors.white70),
+                'Smart orders matched to your goals, health context, and real life. Organized by restaurant so the choice feels smaller.',
+                style: AppText.bodySm(),
               ),
               const SizedBox(height: 20),
               InkWell(
                 onTap: onSearch,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+                borderRadius: BorderRadius.circular(AppRadius.pill),
                 child: Container(
-                  height: 52,
+                  height: 48,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.22),
-                    ),
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    border: Border.all(color: AppColors.foreground),
                   ),
                   child: Row(
                     children: [
                       const HugeIcon(
                         icon: HugeIcons.strokeRoundedSearch01,
-                        size: 18,
-                        color: Colors.white,
+                        size: 16,
+                        color: AppColors.foreground,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           'Restaurant, dish, or craving',
-                          style: AppText.bodySm(color: Colors.white70),
+                          style: AppText.bodySm(
+                            color: AppColors.mutedForeground,
+                          ),
                         ),
                       ),
                       const HugeIcon(
                         icon: HugeIcons.strokeRoundedArrowRight01,
-                        size: 17,
-                        color: AppColors.accent,
+                        size: 16,
+                        color: AppColors.foreground,
                       ),
                     ],
                   ),
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ViewControl extends StatelessWidget {
-  final String view;
-  final ValueChanged<String> onChanged;
-  const _ViewControl({required this.view, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.secondary,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Row(
-        children: [
-          _ModeButton(
-            label: 'For you',
-            active: view == 'restaurant',
-            onTap: () => onChanged('restaurant'),
-          ),
-          _ModeButton(
-            label: 'By goal',
-            active: view == 'goal',
-            onTap: () => onChanged('goal'),
-          ),
-          _ModeButton(
-            label: 'Nearest',
-            active: view == 'nearby',
-            onTap: () => onChanged('nearby'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModeButton extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _ModeButton({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          height: 40,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? AppColors.card : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Text(
-            label,
-            style: AppText.label(
-              color: active ? AppColors.primary : AppColors.mutedForeground,
-            ),
           ),
         ),
       ),
@@ -361,16 +345,19 @@ class _ForYouView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'MATCHED TO TODAY',
-                style: AppText.eyebrow(color: AppColors.success),
+                'MADE FOR RIGHT NOW',
+                style: AppText.kicker(color: AppColors.primary),
               ),
-              const SizedBox(height: 3),
-              Text('Start with the easiest win', style: AppText.h2()),
+              const SizedBox(height: 4),
+              Text('Start with an order', style: AppText.h2()),
             ],
           ),
         ),
         SizedBox(
-          height: 304,
+          // Matches RailCard's actual content height (207 image + 16/16
+          // padding + eyebrow/title/meta text block) instead of the old 380,
+          // which left ~50px of dead white space under every card.
+          height: 336,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -381,30 +368,21 @@ class _ForYouView extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 34, 20, 14),
+          padding: const EdgeInsets.fromLTRB(20, 34, 20, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'BROWSE PLACES',
-                style: AppText.eyebrow(color: AppColors.primary),
+                'CHOOSE A LANE',
+                style: AppText.kicker(color: AppColors.primary),
               ),
-              const SizedBox(height: 3),
-              Text('Use the menu you already have', style: AppText.h2()),
-              const SizedBox(height: 14),
-              TextField(
-                controller: query,
-                onChanged: (_) => onQueryChanged(),
-                decoration: const InputDecoration(
-                  hintText: 'Filter restaurants',
-                  prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedSearch01),
-                ),
-              ),
+              const SizedBox(height: 4),
+              Text('What sounds good?', style: AppText.h3()),
             ],
           ),
         ),
         SizedBox(
-          height: 42,
+          height: 112,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -413,26 +391,55 @@ class _ForYouView extends StatelessWidget {
             itemBuilder: (context, index) {
               final item = _quickCategories[index];
               final active = item == category;
-              return ChoiceChip(
-                selected: active,
-                label: Text(item),
-                onSelected: (_) => onCategoryChanged(item),
-                selectedColor: AppColors.primary,
-                backgroundColor: AppColors.card,
-                side: BorderSide(
-                  color: active ? AppColors.primary : AppColors.border,
-                ),
-                labelStyle: AppText.label(
-                  color: active ? Colors.white : AppColors.foreground,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
+              return _CategoryTile(
+                label: item,
+                image: _categoryImages[item],
+                active: active,
+                onTap: () => onCategoryChanged(item),
               );
             },
           ),
         ),
-        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 30, 20, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'EXPLORE RESTAURANTS',
+                          style: AppText.kicker(color: AppColors.primary),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('A good place to start', style: AppText.h3()),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '${source.length} tested ${source.length == 1 ? 'place' : 'places'}',
+                    style: AppText.caption(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: query,
+                onChanged: (_) => onQueryChanged(),
+                decoration: const InputDecoration(
+                  hintText: 'Search tested places',
+                  prefixIcon: HugeIcon(icon: HugeIcons.strokeRoundedSearch01),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
         if (filtered.isEmpty)
           const _EmptyRestaurants()
         else
@@ -450,6 +457,68 @@ class _ForYouView extends StatelessWidget {
   }
 }
 
+/// Category quick-filter tile — image + label, matching Figma's "Choose a
+/// lane" / "What are you craving?" chip grid (node 321:1756). Distinct from a
+/// plain [ChoiceChip]: the active state is a tinted card, not just a border.
+class _CategoryTile extends StatelessWidget {
+  final String label;
+  final String? image;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _CategoryTile({
+    required this.label,
+    required this.image,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      child: Container(
+        width: 72,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: active ? Colors.white.withValues(alpha: 0.8) : null,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(
+            color: active ? AppColors.primary : Colors.transparent,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 58,
+              width: double.infinity,
+              child: image == null
+                  ? Icon(
+                      Icons.restaurant_menu,
+                      color: active
+                          ? AppColors.primary
+                          : AppColors.mutedForeground,
+                    )
+                  : Image.asset(image!, fit: BoxFit.contain),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: AppText.tagBold(
+                color: active ? AppColors.primary : AppColors.mutedForeground,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HackFeature extends StatelessWidget {
   final FastHack hack;
   final int index;
@@ -458,107 +527,76 @@ class _HackFeature extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final restaurant = restaurantById(hack.restaurantId);
-    final labels = ['BEST MATCH', 'EASY SWAP', 'HIGH PROTEIN'];
-    return SizedBox(
+    final badges = ['BEST MATCH', 'EASY SWAP', 'HIGH PROTEIN'];
+    return RailCard(
+      image: hack.image,
+      badge: badges[index % badges.length],
+      eyebrow: restaurant?.name ?? 'Smart order',
+      title: hack.title,
+      meta: '${hack.calories} cal · ${hack.protein}g protein',
+      onTap: () => context.push('/hack/${hack.id}'),
       width: 270,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: () => context.push('/hack/${hack.id}'),
-        child: Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                height: 148,
-                width: double.infinity,
-                child: Image.asset(hack.image, fit: BoxFit.cover),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        labels[index],
-                        style: AppText.eyebrow(color: AppColors.success),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        hack.title,
-                        style: AppText.h3(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${restaurant?.name ?? 'Smart order'}  ·  ${hack.calories} cal  ·  ${hack.protein}g',
-                        style: AppText.caption(),
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
 
-class _GoalView extends StatelessWidget {
+/// Figma node 321:2044 "5.3 Eat Out – Browse by Outcome". The profile's own
+/// goal opens selected, but every outcome is browsable from here — the pill
+/// row (see [CountChip]) is a real switch, not decoration.
+class _GoalView extends StatefulWidget {
   final Goal goal;
   const _GoalView({required this.goal});
 
   @override
+  State<_GoalView> createState() => _GoalViewState();
+}
+
+class _GoalViewState extends State<_GoalView> {
+  late Goal _selected = widget.goal;
+
+  @override
   Widget build(BuildContext context) {
     final matches = fastHacks
-        .where((hack) => hack.goals.contains(goal))
+        .where((hack) => hack.goals.contains(_selected))
         .toList();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.mint,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'YOUR CURRENT GOAL',
-                  style: AppText.eyebrow(color: AppColors.primary),
-                ),
-                const SizedBox(height: 8),
-                GoalFitBadge(goal: goal),
-                const SizedBox(height: 12),
-                Text(
-                  '${matches.length} orders fit your plan',
-                  style: AppText.h2(),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Calories, protein, and the useful menu changes stay visible before you open anything.',
-                  style: AppText.bodySm(color: AppColors.mutedForeground),
-                ),
-              ],
+          Text(
+            'YOUR HEALTH CONTEXT',
+            style: AppText.kicker(color: AppColors.primary),
+          ),
+          const SizedBox(height: 4),
+          Text('Browse by outcome', style: AppText.h3()),
+          const SizedBox(height: 6),
+          Text(
+            'Protein and portion context stay visible for every order.',
+            style: AppText.bodySm(color: AppColors.mutedForeground),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 60,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: Goal.values.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final g = Goal.values[index];
+                final count = fastHacks
+                    .where((hack) => hack.goals.contains(g))
+                    .length;
+                return CountChip(
+                  label: goalLabel[g]!,
+                  count: count,
+                  selected: g == _selected,
+                  onTap: () => setState(() => _selected = g),
+                );
+              },
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           for (final hack in matches)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -567,6 +605,22 @@ class _GoalView extends StatelessWidget {
                 restaurant: restaurantById(hack.restaurantId),
               ),
             ),
+          if (matches.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Text(
+                'No orders tagged for this outcome yet.',
+                style: AppText.bodySm(color: AppColors.mutedForeground),
+              ),
+            ),
+          if (_selected == widget.goal) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${goalLabel[widget.goal]} is your current goal.',
+              style: AppText.caption(),
+            ),
+            const SizedBox(height: 20),
+          ],
         ],
       ),
     );
@@ -578,11 +632,76 @@ class _NearbyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+
+    // S-20 — the pre-prompt. Asked in the app's own words, before the OS
+    // dialog, so the user knows what they are agreeing to and a decline is not
+    // a permanent loss.
+    if (!state.locationPromptSeen) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
+        child: StateSurface.empty(
+          icon: HugeIcons.strokeRoundedLocation01,
+          title: 'Sort by what is actually close',
+          body:
+              'With your location, this list starts with the places you can reach now. It is used to sort this screen and nothing else — not stored, not attached to your profile.',
+          primaryLabel: 'Use my location',
+          onPrimary: () => state.setLocationEnabled(true),
+          secondaryLabel: 'Not now',
+          onSecondary: () => state.setLocationEnabled(false),
+          padding: const EdgeInsets.symmetric(vertical: 24),
+        ),
+      );
+    }
+
+    // Permission-denied variant: full manual browse, one quiet line of
+    // explanation, and no repeat ask.
+    if (!state.profile.locationEnabled) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ALL PLACES WE COVER',
+              style: AppText.kicker(color: AppColors.primary),
+            ),
+            const SizedBox(height: 4),
+            Text('Browse by name', style: AppText.h2()),
+            const SizedBox(height: 12),
+            InlineNote(
+              icon: HugeIcons.strokeRoundedLocation01,
+              text:
+                  'Location is off, so this is the full list rather than the closest first. You can turn it on in Settings whenever it would help.',
+            ),
+            const SizedBox(height: 20),
+            for (final restaurant in restaurants)
+              _RestaurantRow(restaurant: restaurant),
+          ],
+        ),
+      );
+    }
+
     final nearby =
         restaurants
             .where((restaurant) => restaurant.distanceMi != null)
             .toList()
           ..sort((a, b) => a.distanceMi!.compareTo(b.distanceMi!));
+
+    // Granted but nothing in range — a real state, not an empty column.
+    if (nearby.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
+        child: StateSurface.noResults(
+          title: 'Nothing covered nearby yet',
+          body:
+              'We do not have guides for anywhere close to you right now. More places are being added — browsing by name still works.',
+          primaryLabel: 'Browse all places',
+          onPrimary: () => context.go('/eat-out?view=restaurant'),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
       child: Column(
@@ -590,38 +709,23 @@ class _NearbyView extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: AppColors.accent,
-                  shape: BoxShape.circle,
-                ),
-                child: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedLocation01,
-                  size: 19,
-                  color: AppColors.primary,
-                ),
+              const HugeIcon(
+                icon: HugeIcons.strokeRoundedLocation01,
+                size: 14,
+                color: AppColors.primary,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CLOSEST FIRST',
-                      style: AppText.eyebrow(color: AppColors.primary),
-                    ),
-                    Text('Near Ashburn, Virginia', style: AppText.h2()),
-                  ],
-                ),
+              const SizedBox(width: 6),
+              Text(
+                'ASHBURN, VIRGINIA',
+                style: AppText.kicker(color: AppColors.primary),
               ),
             ],
           ),
           const SizedBox(height: 8),
+          Text('Closest places first', style: AppText.h2()),
+          const SizedBox(height: 8),
           Text(
-            'Distance is approximate and only used to sort this list.',
+            'Distance is approximate and only used for sorting.',
             style: AppText.bodySm(color: AppColors.mutedForeground),
           ),
           const SizedBox(height: 20),
@@ -633,6 +737,11 @@ class _NearbyView extends StatelessWidget {
   }
 }
 
+/// Restaurant list row — Figma node 321:1901 "5.1 Eat Out – Restaurant List".
+/// Close kin of [ThumbListRow] but the thumbnail is a contain-fit square
+/// (restaurant marks are transparent PNGs that crop badly under
+/// [ThumbListRow]'s circular cover-fit), so this stays its own widget rather
+/// than forcing that shared one to fit content it wasn't built for.
 class _RestaurantRow extends StatelessWidget {
   final Restaurant restaurant;
   const _RestaurantRow({required this.restaurant});
@@ -640,63 +749,68 @@ class _RestaurantRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final availableGuides = hacksByRestaurant(restaurant.id).length;
-    return InkWell(
-      onTap: () => context.push('/restaurant/${restaurant.id}'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 58,
-              height: 58,
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.border),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => context.push('/restaurant/${restaurant.id}'),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          constraints: const BoxConstraints(minHeight: 80),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.highlight,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Image.asset(
+                  _restaurantImage(restaurant),
+                  fit: BoxFit.contain,
+                ),
               ),
-              child: Image.asset(
-                _restaurantImage(restaurant),
-                fit: BoxFit.contain,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    restaurant.name,
-                    style: AppText.h3(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    availableGuides == 0
-                        ? '${restaurant.category}  ·  Menu review pending'
-                        : '${restaurant.category}  ·  $availableGuides ${availableGuides == 1 ? "guide" : "guides"} available',
-                    style: AppText.caption(),
-                  ),
-                  if (restaurant.distanceMi != null) ...[
-                    const SizedBox(height: 3),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      '${restaurant.distanceMi} mi away',
-                      style: AppText.caption(color: AppColors.success),
+                      restaurant.name,
+                      style: AppText.body(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        restaurant.category,
+                        availableGuides == 0
+                            ? 'Menu review pending'
+                            : '$availableGuides ${availableGuides == 1 ? "tested order" : "tested orders"}',
+                        if (restaurant.distanceMi != null)
+                          '${restaurant.distanceMi} mi',
+                      ].join(' · '),
+                      style: AppText.caption(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ],
+                ),
               ),
-            ),
-            const HugeIcon(
-              icon: HugeIcons.strokeRoundedArrowRight01,
-              size: 18,
-              color: AppColors.primary,
-            ),
-          ],
+              const HugeIcon(
+                icon: HugeIcons.strokeRoundedArrowRight01,
+                size: 18,
+                color: AppColors.mutedForeground,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -760,6 +874,8 @@ void showLocationSheet(BuildContext context, VoidCallback onDone) {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
+                // Persist the answer so the pre-prompt never fires twice.
+                pageContext.read<AppState>().setLocationEnabled(true);
                 Navigator.of(sheetContext).pop();
                 showAppToast(pageContext, 'Nearby places sorted');
                 onDone();
@@ -772,6 +888,7 @@ void showLocationSheet(BuildContext context, VoidCallback onDone) {
             width: double.infinity,
             child: TextButton(
               onPressed: () {
+                pageContext.read<AppState>().setLocationEnabled(false);
                 Navigator.of(sheetContext).pop();
                 onDone();
               },

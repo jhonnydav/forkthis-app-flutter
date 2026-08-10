@@ -4,199 +4,234 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../data/fixtures.dart';
+import '../product.dart';
 import '../state/app_state.dart';
 import '../theme/text_styles.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_shell.dart';
-import '../widgets/app_toast.dart';
+import '../widgets/figma_components.dart';
+import '../widgets/forkthis_moments.dart';
+import '../widgets/guided_experience.dart';
 
-class HomeScreen extends StatelessWidget {
+/// Restyled against Figma node 321:473 ("2.1 Home – Dashboard"),
+/// `figma.com/design/LjDp489aFZaYiDx88MvvkQ`, pulled 2026-08-06. Layout order
+/// and copy follow that node; app data (fast hacks, AppState) is unchanged —
+/// only presentation moved.
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  static const _dailyCalories = 1850;
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _experienceScheduled = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final state = context.watch<AppState>();
+    if (_experienceScheduled || !state.loaded || !state.onboardingCompleted) {
+      return;
+    }
+    if (state.guidedTourCompleted && !state.welcomeBackPending) return;
+    _experienceScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (!state.guidedTourCompleted) await showGuidedTour(context);
+      if (!mounted) return;
+      if (state.welcomeBackPending) await showWelcomeBackExperience(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final calories = state.logs.fold<int>(
-      0,
-      (sum, item) => sum + item.calories,
-    );
     final protein = state.logs.fold<int>(0, (sum, item) => sum + item.protein);
-    final progress = (calories / _dailyCalories).clamp(0.0, 1.0);
-    final remaining = (_dailyCalories - calories).clamp(0, _dailyCalories);
-    final firstName = state.profile.name.trim().split(RegExp(r'\s+')).first;
+    final name = state.profile.name.trim();
+    final firstName = name.isEmpty ? '' : name.split(RegExp(r'\s+')).first;
+    final featured = fastHacks.first;
+    // Figma's "Pick an order" rail — real hacks, cycling a few badge labels
+    // the way the design does ("BEST FOR TODAY" / "CUSTOMER FAVORITE" / …).
+    // One hack per restaurant, for a varied rail rather than the same
+    // restaurant appearing twice back to back.
+    final seenRestaurants = <String>{};
+    final rail = fastHacks
+        .where((h) => seenRestaurants.add(h.restaurantId))
+        .take(4)
+        .toList();
+    const railBadges = [
+      'BEST FOR TODAY',
+      'CUSTOMER FAVORITE',
+      'HIGH PROTEIN',
+      'QUICK ORDER',
+    ];
+
+    const pagePadding = EdgeInsets.symmetric(horizontal: 20);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
+      value: SystemUiOverlayStyle.dark,
       child: AppShell(
-        scrollTitle: 'Today',
-        scrollEyebrow: 'YOUR PLAN',
-        child: ListView(
-          padding: EdgeInsets.zero,
+        scrollTitle: 'Home',
+        scrollEyebrow: 'READY WHEN YOU ARE',
+        child: Stack(
           children: [
-            _HomeHero(
-              firstName: firstName,
-              calories: calories,
-              remaining: remaining,
-              progress: progress,
-              protein: protein,
-              water: state.waterCups,
-              movement: state.movementMinutes,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'QUICK ACTIONS',
-                    style: AppText.eyebrow(color: AppColors.primary),
-                  ),
-                  const SizedBox(height: 4),
-                  Text('Keep the next step small', style: AppText.h2()),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _QuickAction(
-                          icon: HugeIcons.strokeRoundedDroplet,
-                          label: 'Water',
-                          detail: '${state.waterCups}/8 cups',
-                          tone: AppColors.blueberrySurface,
-                          onTap: () {
-                            state.addWater();
-                            state.addNotification(
-                              title: 'Water added',
-                              body:
-                                  '${state.waterCups} of 8 cups complete today.',
-                            );
-                            showAppToast(context, 'Water added');
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _QuickAction(
-                          icon: HugeIcons.strokeRoundedRestaurant01,
-                          label: 'Eat out',
-                          detail: 'Find an order',
-                          tone: AppColors.warmSurface,
-                          onTap: () => context.go('/eat-out'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _QuickAction(
-                          icon: HugeIcons.strokeRoundedChefHat,
-                          label: 'Cook',
-                          detail: 'Pick a recipe',
-                          tone: AppColors.secondary,
-                          onTap: () => context.go('/cook'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 36, 20, 14),
-              child: _SectionHeading(
-                eyebrow: 'BEST NEXT MOVE',
-                title: 'Lunch, already narrowed down',
-                action: 'See all',
-                onTap: () => context.go('/eat-out'),
-              ),
-            ),
-            SizedBox(
-              height: 250,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: 3,
-                separatorBuilder: (_, _) => const SizedBox(width: 12),
-                itemBuilder: (context, index) => _RecommendationCard(
-                  hack: fastHacks[index],
-                  label: index == 0
-                      ? 'BEST FOR TODAY'
-                      : index == 1
-                      ? 'EASY SWAP'
-                      : 'HIGH PROTEIN',
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 36, 20, 14),
-              child: _SectionHeading(
-                eyebrow: 'TODAY',
-                title: 'What you have logged',
-                action: 'Open Track',
-                onTap: () => context.go('/track'),
-              ),
-            ),
-            if (state.logs.isEmpty)
-              const _EmptyLog()
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
+            ColoredBox(
+              color: AppColors.highlight,
+              child: SafeArea(
+                bottom: false,
+                // Padding.zero on the ListView itself — the rail section below
+                // needs to scroll edge-to-edge, so every other section carries its
+                // own [pagePadding] instead of the list carrying it uniformly.
+                child: ListView(
+                  padding: EdgeInsets.zero,
                   children: [
-                    for (final item in state.logs.take(3)) _LogRow(item: item),
-                  ],
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 32, 20, 36),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                onTap: () => context.go('/track'),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.mint,
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(
-                          color: AppColors.accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const HugeIcon(
-                          icon: HugeIcons.strokeRoundedWalking,
-                          size: 20,
-                          color: AppColors.primary,
-                        ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: pagePadding,
+                      child: _Header(
+                        firstName: firstName,
+                        onSearch: () => context.push('/search'),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
+                    ),
+                    const SizedBox(height: 14),
+                    Padding(
+                      padding: pagePadding,
+                      child: _ForkThisHero(
+                        points: state.momentumPoints,
+                        protein: protein,
+                        onStart: () => openForkThisMomentSearchSheet(context),
+                        onExactOrder: () =>
+                            context.push('/hack/${featured.id}'),
+                      ),
+                    ),
+                    const SizedBox(height: 26),
+                    Padding(
+                      padding: pagePadding,
+                      child: Text(
+                        'What do you need?',
+                        style: AppText.headline(32),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: pagePadding,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: ImageLinkTile(
+                              label: 'Cook',
+                              subtitle: 'Choose a fast recipe',
+                              image: 'assets/images/figma/home/cook-tile.png',
+                              background: AppColors.secondary,
+                              foreground: AppColors.cream,
+                              onTap: () => context.go('/cook'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ImageLinkTile(
+                              label: 'Eat out',
+                              subtitle: 'Find an exact order',
+                              image: 'assets/images/figma/home/eatout-tile.png',
+                              background: AppColors.accent,
+                              foreground: AppColors.textPrimary,
+                              onTap: () => context.go('/eat-out'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: pagePadding.copyWith(top: 8),
+                      child: _TrackTile(onTap: () => context.go('/track')),
+                    ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: pagePadding,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const HugeIcon(
+                                      icon: HugeIcons.strokeRoundedLocation01,
+                                      size: 14,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Ashburn, Virginia',
+                                      style: AppText.caption(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Pick an order',
+                                  style: AppText.headline(32),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => context.go('/eat-out'),
+                            child: const Text('See all'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Sized by content via IntrinsicHeight rather than a guessed
+                    // fixed number — the footer's text grows with the system text
+                    // scale (NFR-2 asks for 200%), so a hardcoded SizedBox height
+                    // either clips it or overflows at larger scales.
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: IntrinsicHeight(
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('A gentle finish counts', style: AppText.h3()),
-                            const SizedBox(height: 3),
-                            Text(
-                              '${state.movementMinutes} minutes logged. A short walk or an early wind-down are both useful.',
-                              style: AppText.bodySm(
-                                color: AppColors.mutedForeground,
+                            for (final (index, hack) in rail.indexed) ...[
+                              if (index > 0) const SizedBox(width: 12),
+                              RailCard(
+                                image: hack.image,
+                                badge: railBadges[index % railBadges.length],
+                                eyebrow:
+                                    restaurantById(hack.restaurantId)?.name ??
+                                    '',
+                                title: hack.title,
+                                meta:
+                                    '${hack.calories} cal · ${hack.protein}g protein',
+                                onTap: () => context.push('/hack/${hack.id}'),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
-                      const HugeIcon(
-                        icon: HugeIcons.strokeRoundedArrowRight01,
-                        size: 18,
-                        color: AppColors.primary,
+                    ),
+                    const SizedBox(height: 24),
+                    Padding(
+                      padding: pagePadding,
+                      child: CtaBannerCard(
+                        icon: HugeIcons.strokeRoundedNotification03,
+                        title: 'You can come back any day.',
+                        subtitle:
+                            'Missed a few days? $productName will give you one easy order or recipe to restart momentum.',
+                        onTap: () => context.go('/track'),
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(height: 32 + MediaQuery.paddingOf(context).bottom),
+                  ],
                 ),
               ),
             ),
@@ -207,157 +242,146 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _HomeHero extends StatelessWidget {
+class _Header extends StatelessWidget {
   final String firstName;
-  final int calories;
-  final int remaining;
-  final double progress;
-  final int protein;
-  final int water;
-  final int movement;
+  final VoidCallback onSearch;
 
-  const _HomeHero({
-    required this.firstName,
-    required this.calories,
-    required this.remaining,
-    required this.progress,
-    required this.protein,
-    required this.water,
-    required this.movement,
-  });
+  const _Header({required this.firstName, required this.onSearch});
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(color: AppColors.primary),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'GOOD AFTERNOON, ${firstName.toUpperCase()}',
-                          style: AppText.eyebrow(color: AppColors.accent),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Today feels manageable.',
-                          style: AppText.h1(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => context.push('/search'),
-                    tooltip: 'Search meals and restaurants',
-                    icon: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedSearch01,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+              Text(
+                'READY WHEN YOU ARE',
+                style: AppText.caption(color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 22),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$calories',
-                    style: AppText.display(color: Colors.white),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'calories logged · $remaining left in your current guide',
-                    style: AppText.bodySm(color: AppColors.accent),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 8,
-                  backgroundColor: Colors.white.withValues(alpha: 0.16),
-                  valueColor: const AlwaysStoppedAnimation(AppColors.accent),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.only(top: 16),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.18),
-                    ),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    _HeroMetric(
-                      label: 'Protein',
-                      value: '${protein}g',
-                      icon: HugeIcons.strokeRoundedBodyPartMuscle,
-                    ),
-                    _HeroMetric(
-                      label: 'Water',
-                      value: '$water/8',
-                      icon: HugeIcons.strokeRoundedDroplet,
-                    ),
-                    _HeroMetric(
-                      label: 'Movement',
-                      value: '${movement}m',
-                      icon: HugeIcons.strokeRoundedWalking,
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 4),
+              Text(
+                firstName.isEmpty ? 'Welcome' : 'Hi, $firstName',
+                style: AppText.greeting(),
               ),
             ],
           ),
         ),
-      ),
+        IconButton(
+          onPressed: onSearch,
+          tooltip: 'Search meals and restaurants',
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.muted,
+            foregroundColor: AppColors.primary,
+            fixedSize: const Size(48, 48),
+            shape: const CircleBorder(),
+          ),
+          icon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedSearch01,
+            color: AppColors.primary,
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _HeroMetric extends StatelessWidget {
-  final String label;
-  final String value;
-  final List<List<dynamic>> icon;
-  const _HeroMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
+class _ForkThisHero extends StatelessWidget {
+  final int points;
+  final int protein;
+  final VoidCallback onStart;
+  final VoidCallback onExactOrder;
+
+  const _ForkThisHero({
+    required this.points,
+    required this.protein,
+    required this.onStart,
+    required this.onExactOrder,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    // A fixed (not just minimum) height lets the CTA anchor to the card's
+    // bottom edge via Spacer below, instead of the badge-to-headline gap
+    // carrying a large hardcoded empty span. The scale term keeps the same
+    // NFR-2 text-scaling headroom the old minHeight formula provided.
+    final height = 332 + ((textScale - 1).clamp(0, 1).toDouble() * 220);
+    return Container(
+      height: height,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(AppRadius.hero),
+      ),
+      child: Stack(
         children: [
-          HugeIcon(icon: icon, size: 16, color: AppColors.accent),
-          const SizedBox(width: 8),
-          Flexible(
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _WarmRedHalftonePainter(),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: AppText.caption(color: Colors.white60),
-                  maxLines: 1,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent,
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Text(
+                    'FORKTHIS! MOMENT',
+                    style: AppText.kicker(color: AppColors.primary),
+                  ),
                 ),
+                const SizedBox(height: 20),
                 Text(
-                  value,
-                  style: AppText.label(color: Colors.white),
-                  maxLines: 1,
+                  'What would make this meal easier?',
+                  style: AppText.headline(
+                    36,
+                    height: 38,
+                    color: AppColors.primaryForeground,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Pick the real-life situation first. We will narrow it to one order, recipe, or next step.',
+                  style: AppText.bodySm(
+                    color: AppColors.primaryForeground.withValues(alpha: 0.82),
+                  ).copyWith(height: 1.34),
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 52,
+                        child: _HeroStartButton(onTap: onStart),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _HeroMetric(value: '$points', label: 'points'),
+                    const SizedBox(width: 8),
+                    _HeroMetric(value: '${protein}g', label: 'protein'),
+                  ],
+                ),
+                TextButton(
+                  onPressed: onExactOrder,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryForeground,
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 44),
+                  ),
+                  child: const Text("See today's exact order"),
                 ),
               ],
             ),
@@ -368,50 +392,85 @@ class _HeroMetric extends StatelessWidget {
   }
 }
 
-class _QuickAction extends StatelessWidget {
-  final List<List<dynamic>> icon;
-  final String label;
-  final String detail;
-  final Color tone;
+class _WarmRedHalftonePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = Paint()..color = AppColors.primary;
+    canvas.drawRect(Offset.zero & size, base);
+
+    final glow = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.55, -0.7),
+        radius: 1.1,
+        colors: [
+          AppColors.secondary.withValues(alpha: 0.58),
+          AppColors.primary.withValues(alpha: 0),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, glow);
+
+    final dot = Paint()..color = AppColors.accent.withValues(alpha: 0.12);
+    const spacing = 6.0;
+    for (double y = -20; y < size.height + 20; y += spacing) {
+      for (double x = -20; x < size.width + 20; x += spacing) {
+        final dx = (x / size.width) - 0.72;
+        final dy = (y / size.height) - 0.2;
+        final distance = (dx * dx + dy * dy).clamp(0, 1).toDouble();
+        final radius = 0.36 + ((1 - distance) * 1.12);
+        canvas.drawCircle(Offset(x, y), radius, dot);
+      }
+    }
+
+    final shade = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          AppColors.primary.withValues(alpha: 0.02),
+          AppColors.maroon.withValues(alpha: 0.62),
+        ],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, shade);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _HeroStartButton extends StatelessWidget {
   final VoidCallback onTap;
-  const _QuickAction({
-    required this.icon,
-    required this.label,
-    required this.detail,
-    required this.tone,
-    required this.onTap,
-  });
+
+  const _HeroStartButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.lg),
       onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
       child: Container(
-        height: 164,
-        padding: const EdgeInsets.all(12),
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border),
+          color: AppColors.accent,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
-              child: HugeIcon(icon: icon, size: 17, color: AppColors.primary),
+            Flexible(
+              child: Text(
+                'Start',
+                style: AppText.button(color: AppColors.textPrimary),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            const Spacer(),
-            Text(label, style: AppText.label()),
-            Text(
-              detail,
-              style: AppText.caption(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(width: 6),
+            const HugeIcon(
+              icon: HugeIcons.strokeRoundedArrowRight01,
+              size: 16,
+              color: AppColors.textPrimary,
             ),
           ],
         ),
@@ -420,183 +479,93 @@ class _QuickAction extends StatelessWidget {
   }
 }
 
-class _SectionHeading extends StatelessWidget {
-  final String eyebrow;
-  final String title;
-  final String action;
-  final VoidCallback onTap;
-  const _SectionHeading({
-    required this.eyebrow,
-    required this.title,
-    required this.action,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(eyebrow, style: AppText.eyebrow(color: AppColors.primary)),
-              const SizedBox(height: 3),
-              Text(title, style: AppText.h2()),
-            ],
-          ),
-        ),
-        TextButton(onPressed: onTap, child: Text(action)),
-      ],
-    );
-  }
-}
-
-class _RecommendationCard extends StatelessWidget {
-  final FastHack hack;
+class _HeroMetric extends StatelessWidget {
+  final String value;
   final String label;
-  const _RecommendationCard({required this.hack, required this.label});
+
+  const _HeroMetric({required this.value, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final restaurant = restaurantById(hack.restaurantId);
-    return SizedBox(
-      width: 246,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: () => context.push('/hack/${hack.id}'),
-        child: Container(
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                height: 132,
-                width: double.infinity,
-                child: Image.asset(hack.image, fit: BoxFit.cover),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: AppText.eyebrow(color: AppColors.success),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        hack.title,
-                        style: AppText.h3(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${restaurant?.name ?? 'Smart order'}  ·  ${hack.calories} cal  ·  ${hack.protein}g',
-                        style: AppText.caption(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+    return Container(
+      width: 62,
+      height: 52,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.primaryForeground.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(
+          color: AppColors.primaryForeground.withValues(alpha: 0.22),
         ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: AppText.label(color: AppColors.primaryForeground),
+                maxLines: 1,
+              ),
+            ),
+          ),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                style: AppText.caption(
+                  color: AppColors.primaryForeground.withValues(alpha: 0.75),
+                ).copyWith(fontSize: 10),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _LogRow extends StatelessWidget {
-  final LoggedItem item;
-  const _LogRow({required this.item});
+/// Home's third "What do you need?" tile — plain card (no photo), icon +
+/// title + subtitle. Figma node 321:550.
+class _TrackTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _TrackTile({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () => context.go('/track'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.card),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.border)),
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Image.asset(
-                item.image,
-                width: 52,
-                height: 52,
-                fit: BoxFit.cover,
-              ),
+            const HugeIcon(
+              icon: HugeIcons.strokeRoundedNotebook01,
+              size: 20,
+              color: AppColors.textPrimary,
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    item.title,
-                    style: AppText.label(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    'Track',
+                    style: AppText.label(color: AppColors.textPrimary),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${item.calories} cal  ·  ${item.protein}g protein',
-                    style: AppText.caption(),
-                  ),
+                  const SizedBox(height: 2),
+                  Text('Log your day', style: AppText.caption()),
                 ],
-              ),
-            ),
-            const HugeIcon(
-              icon: HugeIcons.strokeRoundedArrowRight01,
-              size: 17,
-              color: AppColors.mutedForeground,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyLog extends StatelessWidget {
-  const _EmptyLog();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            const HugeIcon(
-              icon: HugeIcons.strokeRoundedAdd01,
-              color: AppColors.primary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Nothing logged yet. Add the first useful thing, not a perfect day.',
-                style: AppText.bodySm(),
               ),
             ),
           ],

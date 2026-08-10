@@ -10,7 +10,14 @@ import 'screens/hack_detail_screen.dart';
 import 'screens/cook_screen.dart';
 import 'screens/track_screen.dart';
 import 'screens/you_screen.dart';
+import 'screens/track_pages.dart';
+import 'screens/log_flow.dart';
+import 'screens/account_pages.dart';
+import 'screens/profile_pages.dart';
+import 'screens/utility_pages.dart';
+import 'screens/assistant_screen.dart';
 import 'screens/app_error_screen.dart';
+import 'screens/auth_screen.dart';
 
 /// Route paths mirror `../app/src/App.tsx` closely — `/onboarding?step=N`,
 /// `/eat-out?view=&data=&category=`, `/hack/:id`, `/search?q=` — so anyone who knows
@@ -52,6 +59,30 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => _page(state, const SplashScreen()),
     ),
     GoRoute(
+      path: '/login',
+      pageBuilder: (context, state) => _page(
+        state,
+        LoginScreen(
+          afterOnboarding: state.uri.queryParameters['after'] == 'onboarding',
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/signup',
+      pageBuilder: (context, state) => _page(
+        state,
+        SignupScreen(
+          afterOnboarding: state.uri.queryParameters['after'] == 'onboarding',
+          resumeAtStep: int.tryParse(state.uri.queryParameters['resume'] ?? ''),
+        ),
+      ),
+    ),
+    GoRoute(
+      path: '/forgot-password',
+      pageBuilder: (context, state) =>
+          _page(state, const ForgotPasswordScreen()),
+    ),
+    GoRoute(
       path: '/onboarding',
       pageBuilder: (context, state) {
         final step =
@@ -63,6 +94,15 @@ final GoRouter appRouter = GoRouter(
       path: '/onboarding/resume',
       pageBuilder: (context, state) =>
           _page(state, const OnboardingResumeScreen()),
+    ),
+    GoRoute(
+      path: '/loading',
+      pageBuilder: (context, state) => _page(
+        state,
+        LoadingPlanScreen(
+          returning: state.uri.queryParameters['mode'] == 'returning',
+        ),
+      ),
     ),
     GoRoute(
       path: '/home',
@@ -83,7 +123,10 @@ final GoRouter appRouter = GoRouter(
       path: '/search',
       pageBuilder: (context, state) => _page(
         state,
-        SearchScreen(initialQuery: state.uri.queryParameters['q'] ?? ''),
+        SearchScreen(
+          initialQuery: state.uri.queryParameters['q'] ?? '',
+          scope: state.uri.queryParameters['scope'] ?? 'all',
+        ),
       ),
     ),
     GoRoute(
@@ -113,8 +156,71 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => _page(state, const TrackScreen()),
     ),
     GoRoute(
+      path: '/track/history',
+      pageBuilder: (context, state) => _page(state, const TrackHistoryScreen()),
+    ),
+    GoRoute(
+      path: '/track/add',
+      pageBuilder: (context, state) => _page(state, const LogPickerScreen()),
+    ),
+    GoRoute(
+      path: '/track/log',
+      pageBuilder: (context, state) => _page(state, const ManualLogScreen()),
+    ),
+    GoRoute(
       path: '/you',
       pageBuilder: (context, state) => _page(state, const YouScreen()),
+    ),
+    GoRoute(
+      path: '/you/saved',
+      pageBuilder: (context, state) => _page(state, const SavedLibraryScreen()),
+    ),
+    GoRoute(
+      path: '/you/edit',
+      pageBuilder: (context, state) => _page(state, const EditProfileScreen()),
+    ),
+    GoRoute(
+      path: '/you/settings',
+      pageBuilder: (context, state) => _page(state, const SettingsScreen()),
+    ),
+    GoRoute(
+      path: '/you/goal',
+      pageBuilder: (context, state) => _page(state, const GoalContextScreen()),
+    ),
+    GoRoute(
+      path: '/you/measurements',
+      pageBuilder: (context, state) => _page(state, const MeasurementsScreen()),
+    ),
+    GoRoute(
+      path: '/you/notifications',
+      pageBuilder: (context, state) =>
+          _page(state, const NotificationsInboxScreen()),
+    ),
+    GoRoute(
+      path: '/you/privacy',
+      pageBuilder: (context, state) => _page(state, const DataPrivacyScreen()),
+    ),
+    GoRoute(
+      path: '/you/about',
+      pageBuilder: (context, state) => _page(state, const AboutScreen()),
+    ),
+    GoRoute(
+      path: '/help',
+      pageBuilder: (context, state) => _page(state, const HelpScreen()),
+    ),
+    GoRoute(
+      path: '/ask',
+      pageBuilder: (context, state) => _page(state, const AssistantScreen()),
+    ),
+    GoRoute(
+      path: '/legal/privacy',
+      pageBuilder: (context, state) =>
+          _page(state, const LegalPage(kind: 'privacy')),
+    ),
+    GoRoute(
+      path: '/legal/terms',
+      pageBuilder: (context, state) =>
+          _page(state, const LegalPage(kind: 'terms')),
     ),
   ],
 );

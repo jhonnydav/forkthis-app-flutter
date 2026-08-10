@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nutrition_platform/data/fixtures.dart';
@@ -60,6 +61,25 @@ void main() {
     expect(restored.profile.goal, Goal.gain);
   });
 
+  test(
+    'local demo account sign-in persists without storing a password',
+    () async {
+      final state = AppState();
+      await waitUntilLoaded(state);
+
+      state.createEmailAccount(name: 'Sam', email: 'SAM@example.com');
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+
+      final restored = AppState();
+      await waitUntilLoaded(restored);
+      expect(restored.signedIn, isTrue);
+      expect(restored.authProvider, 'email');
+      expect(restored.accountEmail, 'sam@example.com');
+      expect(restored.profile.name, 'Sam');
+      expect(restored.exportJson(), isNot(contains('password')));
+    },
+  );
+
   test('daily counters clamp and notifications stay bounded', () async {
     final state = AppState();
     await waitUntilLoaded(state);
@@ -73,6 +93,119 @@ void main() {
     expect(state.waterCups, 0);
     expect(state.movementMinutes, 300);
     expect(state.notifications, hasLength(30));
+  });
+
+  test('guided tour completion survives relaunch', () async {
+    final state = AppState();
+    await waitUntilLoaded(state);
+
+    state.completeOnboarding();
+    expect(state.guidedTourCompleted, isFalse);
+    state.completeGuidedTour();
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+
+    final restored = AppState();
+    await waitUntilLoaded(restored);
+    expect(restored.guidedTourCompleted, isTrue);
+  });
+
+  test('reminder opt-out removes and blocks reminder notifications', () async {
+    final state = AppState();
+    await waitUntilLoaded(state);
+
+    state.addReminderNotification(title: 'Come back');
+    expect(state.notifications.any((item) => item.kind == 'reminder'), isTrue);
+
+    state.setReminderNotifications(false);
+    state.addReminderNotification(title: 'Blocked reminder');
+
+    expect(state.profile.notifications, isFalse);
+    expect(state.notifications.any((item) => item.kind == 'reminder'), isFalse);
+  });
+
+  test('a three-day gap creates one supportive return state', () async {
+    SharedPreferences.setMockInitialValues({
+      'nutrition-platform-state-v1': jsonEncode({
+        'profile': {'notifications': true},
+        'onboardingCompleted': true,
+        'onboardingStep': 9,
+        'guidedTourCompleted': true,
+        'lastOpenedAt': DateTime.now()
+            .subtract(const Duration(days: 4))
+            .toIso8601String(),
+      }),
+    });
+
+    final state = AppState();
+    await waitUntilLoaded(state);
+    expect(state.welcomeBackPending, isTrue);
+
+    state.dismissWelcomeBack();
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    final restored = AppState();
+    await waitUntilLoaded(restored);
+    expect(restored.welcomeBackPending, isFalse);
+    expect(restored.earnedBadgeIds, contains('back-at-it'));
+  });
+
+  test(
+    'saving and logging award momentum without duplicate save points',
+    () async {
+      final state = AppState();
+      await waitUntilLoaded(state);
+      final hack = fastHacks.first;
+
+      state.toggleSavedHack(hack.id);
+      state.toggleSavedHack(hack.id);
+      state.toggleSavedHack(hack.id);
+      state.logItem(
+        sourceId: hack.id,
+        type: 'order',
+        title: hack.title,
+        calories: hack.calories,
+        protein: hack.protein,
+        image: hack.image,
+      );
+
+      expect(state.momentumPoints, 20);
+      expect(state.earnedBadgeIds, contains('first-forkthis-pick'));
+      expect(state.earnedBadgeIds, contains('protein-helper'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 40));
+      final restored = AppState();
+      await waitUntilLoaded(restored);
+      expect(restored.momentumPoints, 20);
+      expect(restored.earnedBadgeIds, contains('first-forkthis-pick'));
+      expect(restored.streakDays, 1);
+    },
+  );
+
+  test('gamification queues streak and badge celebrations', () async {
+    SharedPreferences.setMockInitialValues({
+      'nutrition-platform-state-v1': jsonEncode({
+        'lastStreakActionDate': DateTime.now()
+            .subtract(const Duration(days: 1))
+            .toIso8601String()
+            .substring(0, 10),
+        'streakDays': 2,
+        'longestStreakDays': 2,
+      }),
+    });
+    final state = AppState();
+    await waitUntilLoaded(state);
+
+    state.recordForkThisMoment('fast-restart');
+
+    expect(state.streakDays, 3);
+    expect(state.longestStreakDays, 3);
+    expect(state.pendingStreakDays, 3);
+    expect(state.earnedBadgeIds, contains('three-day-streak'));
+    expect(state.pendingBadgeIds, contains('three-day-streak'));
+
+    state.consumePendingStreak();
+    state.consumePendingBadge('three-day-streak');
+    expect(state.pendingStreakDays, 0);
+    expect(state.pendingBadgeIds, isNot(contains('three-day-streak')));
   });
 
   test(
@@ -89,6 +222,30 @@ void main() {
       expect(state.savedHackIds, isEmpty);
       expect(state.notifications, isEmpty);
       expect(state.profile.email, isEmpty);
+      expect(state.profile.surgical, 'prefer_not');
+      expect(state.momentumPoints, 0);
+      expect(state.earnedBadgeIds, isEmpty);
+    },
+  );
+
+  test(
+    'demo restart returns to onboarding without deleting demo activity',
+    () async {
+      final state = AppState();
+      await waitUntilLoaded(state);
+      state.completeOnboarding();
+      state.completeGuidedTour();
+      state.updateProfile(name: 'Demo User', goal: Goal.lose);
+      state.toggleSavedHack(fastHacks.first.id);
+
+      state.restartDemoFromOnboarding();
+
+      expect(state.onboardingCompleted, isFalse);
+      expect(state.onboardingStep, 0);
+      expect(state.guidedTourCompleted, isFalse);
+      expect(state.profile.name, isEmpty);
+      expect(state.profile.goal, Goal.maintain);
+      expect(state.savedHackIds, contains(fastHacks.first.id));
     },
   );
 }
