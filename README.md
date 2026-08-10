@@ -1,7 +1,7 @@
 # ForkThis! — Flutter (native mobile)
 
-Shared Flutter implementation for iOS, Android, and the browser demo. The earlier
-Vite prototype is archived at [`../archive-web-prototype/`](../archive-web-prototype/).
+Shared Flutter implementation for iOS, Android, and the browser demo. The parallel
+React web app lives at [`../app-react/`](../app-react/) — maintained separately, not superseded.
 Built 2026-07-31, superseding the earlier Expo + React Native Reusables plan in
 [`../docs/ENGINEERING-PLAN.md`](../docs/ENGINEERING-PLAN.md) §3.1 — Flutter is now the mobile stack
 decision.
