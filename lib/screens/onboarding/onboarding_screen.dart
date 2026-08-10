@@ -11,13 +11,13 @@ import '../../product.dart';
 import '../../theme/tokens.dart';
 import '../../theme/text_styles.dart';
 import '../../widgets/app_shell.dart';
-import '../../widgets/product_sheet.dart';
 import '../auth_screen.dart';
 
 /// Ported step-for-step from `../app/src/screens/Onboarding.tsx`. Step numbers and
 /// their meaning match the web app's `?step=N` exactly:
-///   0 welcome · 1-3 intro slides · 4 age gate (DOB) · 5 goal · 6 body stats
-///   7 surgical context · 8 activity · 9 loading plan → auto-advance to /home
+///   0 welcome (Get Started / Sign in) · 1-3 intro slides · 4 age gate (DOB)
+///   5 goal · 6 body stats · 7 surgical context · 8 activity, which opens the
+///   create-account sheet (with a sign-in option) → /loading → /home.
 ///
 /// Redesigned 2026-08-01: one `AppShell`/`Scaffold` for the whole flow (each step
 /// used to wrap its own, which meant no navigation transition ever fired — go_router
@@ -113,14 +113,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _stepContent(int step) {
     if (step == 0) return _WelcomeContent(onNext: () => go(1));
     if (step >= 1 && step <= 3) {
-      // Step 3 is the last intro slide ("Let's Begin") — account creation
-      // gates the questionnaire from here rather than sitting at the very
-      // end of onboarding, so the flow is splash → onboarding intro →
-      // account creation (with a sign-in option) → questionnaire → home tour.
-      final onNext = step == 3
-          ? () => openCreateAccountSheet(context, resumeAtStep: 4)
-          : () => go(step + 1);
-      return _IntroContent(index: step - 1, onNext: onNext);
+      return _IntroContent(index: step - 1, onNext: () => go(step + 1));
     }
     if (step == 4) return _AgeStep(state: this);
     if (step == 5) return _GoalStep(state: this);
@@ -387,13 +380,13 @@ class _WelcomeContent extends StatelessWidget {
                   height: 56,
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => _showDataInfo(context),
+                    onPressed: () => context.go('/login'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
                       side: const BorderSide(color: AppColors.borderStrong),
                       backgroundColor: AppColors.card.withValues(alpha: 0.86),
                     ),
-                    child: const Text('How your data is stored'),
+                    child: const Text('Sign in'),
                   ),
                 ),
               ],
@@ -404,30 +397,6 @@ class _WelcomeContent extends StatelessWidget {
     );
   }
 
-  void _showDataInfo(BuildContext context) {
-    showProductSheet(
-      context,
-      title: 'Private by default',
-      description: 'This build keeps your plan and activity on this device.',
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your onboarding answers, saved meals, activity, and reminders stay in local app storage. No password is collected in this build.',
-              style: AppText.body(color: AppColors.mutedForeground),
-            ),
-            const SizedBox(height: 20),
-            _PillButton(
-              label: 'Got it',
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _IntroContent extends StatelessWidget {
@@ -1318,7 +1287,10 @@ class _ActivityStepState extends State<_ActivityStep> {
           heightCm: s.heightInCentimeters,
           weightKg: s.weightInKilograms,
         );
-        s.go(9);
+        // Account creation comes after the questionnaire, not before it —
+        // the new user answers everything first, then is asked to save
+        // their progress (with a sign-in option for returning users).
+        openCreateAccountSheet(context, afterOnboarding: true);
       },
       child: Column(
         children: [
