@@ -2,6 +2,7 @@
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
+build
 build/
 ios/Pods/
 ios/Flutter/Flutter.framework
