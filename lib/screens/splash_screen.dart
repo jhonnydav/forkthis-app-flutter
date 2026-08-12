@@ -2,12 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../product.dart';
 import '../state/app_state.dart';
 import '../theme/text_styles.dart';
 import '../theme/tokens.dart';
+import '../widgets/brand_logo.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -111,19 +111,9 @@ class _SplashScreenState extends State<SplashScreen>
                             scale: 1 + (_pulse.value * 0.035),
                             child: child,
                           ),
-                          child: Container(
-                            width: 92,
-                            height: 92,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: AppColors.accent,
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: const HugeIcon(
-                              icon: HugeIcons.strokeRoundedFavourite,
-                              size: 42,
-                              color: AppColors.primary,
-                            ),
+                          child: BrandLogo(
+                            size: 92,
+                            borderRadius: BorderRadius.circular(24),
                           ),
                         ),
                       ),

@@ -7,6 +7,7 @@ import '../product.dart';
 import '../state/app_state.dart';
 import '../theme/text_styles.dart';
 import '../theme/tokens.dart';
+import '../widgets/brand_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   final bool afterOnboarding;
@@ -58,20 +59,29 @@ class _LoginScreenState extends State<LoginScreen> {
       title: 'Welcome back.',
       subtitle:
           'Sign in to keep your ForkThis! moments, saves, and momentum together.',
-      footer: Wrap(
-        alignment: WrapAlignment.center,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'New here?',
-            style: AppText.bodySm(color: AppColors.textSecondary),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'New here?',
+                style: AppText.bodySm(color: AppColors.textSecondary),
+              ),
+              TextButton(
+                onPressed: () => openCreateAccountSheet(
+                  context,
+                  afterOnboarding: widget.afterOnboarding,
+                ),
+                child: const Text('Create account'),
+              ),
+            ],
           ),
           TextButton(
-            onPressed: () => openCreateAccountSheet(
-              context,
-              afterOnboarding: widget.afterOnboarding,
-            ),
-            child: const Text('Create account'),
+            onPressed: _finish,
+            child: const Text('Or continue as Guest →'),
           ),
         ],
       ),
@@ -183,7 +193,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ? "If an account exists for ${_email.text}, we've sent a link to reset the password."
           : "Enter the email on your account and we'll send a link to reset your password.",
       footer: TextButton(
-        onPressed: () => context.canPop() ? context.pop() : context.go('/login'),
+        onPressed: () =>
+            context.canPop() ? context.pop() : context.go('/login'),
         child: const Text('Back to sign in'),
       ),
       child: _sent
@@ -258,6 +269,19 @@ class _SignupScreenState extends State<SignupScreen> {
     });
   }
 
+  void _continueAsGuest() {
+    final resumeAtStep = widget.resumeAtStep;
+    if (resumeAtStep != null) {
+      context.read<AppState>().markOnboardingStep(resumeAtStep);
+      context.go('/onboarding?step=$resumeAtStep');
+    } else if (widget.afterOnboarding) {
+      context.read<AppState>().completeOnboarding();
+      context.go('/loading');
+    } else {
+      context.go('/onboarding?step=0');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     _openSheet();
@@ -297,6 +321,12 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         child: const Text('Already have one? Sign in'),
                       ),
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton(
+                      onPressed: _continueAsGuest,
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                      child: const Text('Or continue as Guest →'),
                     ),
                   ],
                 ),
@@ -624,37 +654,18 @@ class _AuthBrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: Text(
-            'F!',
-            style: AppText.h3(color: AppColors.primaryForeground),
-          ),
+        const BrandLogo(
+          size: 44,
+          variant: BrandLogoVariant.fullColor,
+          borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg)),
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                productName,
-                style: AppText.h3(color: AppColors.primary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                'One clear choice when meals get messy.',
-                style: AppText.caption(color: AppColors.textSecondary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+          child: Text(
+            productName,
+            style: AppText.h3(color: AppColors.primary),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

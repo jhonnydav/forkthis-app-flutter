@@ -1,4 +1,7 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -47,6 +50,22 @@ class _SearchScreenState extends State<SearchScreen> {
   late String _q = widget.initialQuery;
   late String _scope = widget.scope;
 
+  /// Bumped by the "Remix" action to reshuffle the current result set into a
+  /// different order without re-running the (deterministic) search itself.
+  int _remixSeed = 0;
+
+  void _remix() {
+    HapticFeedback.selectionClick();
+    setState(() => _remixSeed++);
+  }
+
+  List<T> _shuffled<T>(List<T> items) {
+    // Seed 0 is the untouched, best-match-first order; remixing only kicks
+    // in once the user has actually tapped the button at least once.
+    if (_remixSeed == 0 || items.length < 2) return items;
+    return List<T>.from(items)..shuffle(Random(_remixSeed));
+  }
+
   List<Recipe> _recipeResults(String query) {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return const [];
@@ -72,6 +91,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _setQuery(String q) => setState(() {
     _q = q;
     _controller.text = q;
+    _remixSeed = 0;
   });
 
   String _resultSummary(int orders, int recipeCount) {
@@ -92,10 +112,10 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final hasQuery = _q.trim().isNotEmpty;
     final results = hasQuery && _scope != 'recipes'
-        ? searchFastHacks(_q)
+        ? _shuffled(searchFastHacks(_q))
         : <FastHack>[];
     final recipeHits = hasQuery && _scope != 'orders'
-        ? _recipeResults(_q)
+        ? _shuffled(_recipeResults(_q))
         : <Recipe>[];
     final empty = hasQuery && results.isEmpty && recipeHits.isEmpty;
 
@@ -118,12 +138,19 @@ class _SearchScreenState extends State<SearchScreen> {
                 controller: _controller,
                 query: _q,
                 scope: _scope,
-                onQueryChanged: (v) => setState(() => _q = v),
+                onQueryChanged: (v) => setState(() {
+                  _q = v;
+                  _remixSeed = 0;
+                }),
                 onQueryCleared: () => setState(() {
                   _q = '';
                   _controller.clear();
+                  _remixSeed = 0;
                 }),
-                onScopeChanged: (v) => setState(() => _scope = v),
+                onScopeChanged: (v) => setState(() {
+                  _scope = v;
+                  _remixSeed = 0;
+                }),
               ),
             ),
             if (!hasQuery) ...[
@@ -187,6 +214,7 @@ class _SearchScreenState extends State<SearchScreen> {
               _ResultsHeader(
                 title: _resultSummary(results.length, recipeHits.length),
                 query: _q,
+                onRemix: _remix,
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -541,7 +569,12 @@ class _EmptySearchCard extends StatelessWidget {
 class _ResultsHeader extends StatelessWidget {
   final String title;
   final String query;
-  const _ResultsHeader({required this.title, required this.query});
+  final VoidCallback onRemix;
+  const _ResultsHeader({
+    required this.title,
+    required this.query,
+    required this.onRemix,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -550,12 +583,26 @@ class _ResultsHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'BEST AVAILABLE MATCHES',
-            style: AppText.kicker(color: AppColors.primary),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BEST AVAILABLE MATCHES',
+                      style: AppText.kicker(color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(title, style: AppText.headline(30)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _RemixButton(onPressed: onRemix),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(title, style: AppText.headline(30)),
           const SizedBox(height: 8),
           Text(
             'For "$query"',
@@ -564,6 +611,47 @@ class _ResultsHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Reshuffles the current, already-matched result set into a new order — a
+/// quick "show me something else" escape hatch that doesn't require typing a
+/// different query.
+class _RemixButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _RemixButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const HugeIcon(
+              icon: HugeIcons.strokeRoundedShuffle,
+              size: 15,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Remix',
+              style: AppText.label(color: AppColors.primary).copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

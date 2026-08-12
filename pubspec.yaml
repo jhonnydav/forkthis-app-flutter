@@ -36,6 +36,7 @@ flutter:
     - assets/images/figma/home/
     - assets/images/eat-out/
     - assets/images/badges/
+    - assets/images/brand/
   fonts:
     # Display headlines only, per the new Figma redesign (2026-08-06) — large
     # hero/section headings ("Real meals with the macros worked out.", "Cook",

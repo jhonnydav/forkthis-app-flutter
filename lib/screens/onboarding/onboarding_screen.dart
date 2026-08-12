@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -431,21 +432,6 @@ class _IntroContent extends StatelessWidget {
                   children: [
                     _IntroProgress(current: index + 1),
                     const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        borderRadius: BorderRadius.circular(AppRadius.pill),
-                      ),
-                      child: Text(
-                        item.badge.toUpperCase(),
-                        style: AppText.kicker(color: AppColors.primary),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
                     Text(
                           item.title,
                           style: AppText.headline(
@@ -827,13 +813,28 @@ class _AgeStepState extends State<_AgeStep> {
             borderRadius: BorderRadius.circular(AppRadius.lg),
             onTap: () async {
               HapticFeedback.selectionClick();
-              final picked = await showDatePicker(
+              final picked = await showModalBottomSheet<DateTime>(
                 context: context,
-                initialDate: s.birthDate,
-                firstDate: DateTime(1900),
-                lastDate: DateTime.now(),
+                backgroundColor: Colors.transparent,
+                isScrollControlled: true,
+                builder: (sheetContext) => _NativeDatePickerSheet(
+                  initialDate: s.birthDate,
+                  minDate: DateTime(1900),
+                  maxDate: DateTime.now(),
+                ),
               );
-              if (picked != null) setState(() => s.birthDate = picked);
+              if (picked == null || !context.mounted) return;
+              final now = DateTime.now();
+              var pickedAge = now.year - picked.year;
+              if (now.month < picked.month ||
+                  (now.month == picked.month && now.day < picked.day)) {
+                pickedAge -= 1;
+              }
+              if (pickedAge < 13) {
+                await _showUnder13RejectionDrawer(context);
+                return;
+              }
+              setState(() => s.birthDate = picked);
             },
             child: Container(
               height: 64,
@@ -926,6 +927,171 @@ class _AgeStepState extends State<_AgeStep> {
     'Nov',
     'Dec',
   ][m - 1];
+}
+
+/// Rejection drawer for a birth date that puts the user under the app's 13+
+/// requirement. Shown instead of silently committing the date and leaving the
+/// user to notice the inline error banner — this is a hard product boundary,
+/// not a soft validation hint, so it interrupts.
+Future<void> _showUnder13RejectionDrawer(BuildContext context) {
+  HapticFeedback.mediumImpact();
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (sheetContext) => Container(
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppColors.destructive.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const HugeIcon(
+                icon: HugeIcons.strokeRoundedShield01,
+                color: AppColors.destructive,
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'You must be 13 or older',
+              style: AppText.headline(26, color: AppColors.primary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$productName provides clinical nutrition guidance meant for people 13 and up. '
+              'We can\'t create a profile for this date of birth — please check back once you meet the age requirement.',
+              style: AppText.bodySm(color: AppColors.mutedForeground).copyWith(
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(sheetContext).pop(),
+                child: const Text('Choose a different date'),
+              ),
+            ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Native-feeling date picker — an iOS-style spinning counter presented in a
+/// bottom sheet, rather than Material's calendar-grid dialog.
+class _NativeDatePickerSheet extends StatefulWidget {
+  final DateTime initialDate;
+  final DateTime minDate;
+  final DateTime maxDate;
+  const _NativeDatePickerSheet({
+    required this.initialDate,
+    required this.minDate,
+    required this.maxDate,
+  });
+
+  @override
+  State<_NativeDatePickerSheet> createState() =>
+      _NativeDatePickerSheetState();
+}
+
+class _NativeDatePickerSheetState extends State<_NativeDatePickerSheet> {
+  late DateTime _value = widget.initialDate;
+
+  @override
+  Widget build(BuildContext context) {
+    // The card background must reach the true bottom edge of the screen —
+    // SafeArea goes *inside* it, around the content only, so the home
+    // indicator gets a clear strip of card color under it instead of a gap
+    // of whatever's behind the sheet.
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(color: AppColors.mutedForeground),
+                    ),
+                  ),
+                  Text(
+                    'Date of Birth',
+                    style: AppText.label(color: AppColors.primary),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(_value),
+                    child: const Text('Done'),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 216,
+              child: CupertinoTheme(
+                data: const CupertinoThemeData(
+                  textTheme: CupertinoTextThemeData(
+                    dateTimePickerTextStyle: TextStyle(
+                      fontFamily: 'Satoshi',
+                      fontSize: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.date,
+                  initialDateTime: widget.initialDate,
+                  minimumDate: widget.minDate,
+                  maximumDate: widget.maxDate,
+                  onDateTimeChanged: (d) => _value = d,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _GoalStep extends StatefulWidget {
@@ -1451,6 +1617,11 @@ class _LoadingPlanScreenState extends State<LoadingPlanScreen> {
 }
 
 /// S-09 — resume prompt. Branch A of an open client decision (PRD Q-3).
+///
+/// Bottom-layout redesign (Figma 1.10 Resume Prompt, node 790:617): the copy
+/// and both actions now sit together as one continuous block anchored to the
+/// bottom of the screen — no separate bordered footer splitting text from
+/// buttons, everything on the same Highlight surface.
 class OnboardingResumeScreen extends StatelessWidget {
   const OnboardingResumeScreen({super.key});
 
@@ -1458,53 +1629,41 @@ class OnboardingResumeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppShell(
       tabBar: false,
-      child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'WELCOME BACK',
-                      style: AppText.bodySm(
-                        color: AppColors.questionnaireLabel,
-                      ).copyWith(fontWeight: FontWeight.w700),
-                    ).animate().fadeIn(duration: 380.ms),
-                    const SizedBox(height: 8),
-                    Text(
-                          'Your setup is still here.',
-                          style: AppText.h1(color: AppColors.primary),
-                        )
-                        .animate()
-                        .fadeIn(delay: 60.ms, duration: 380.ms)
-                        .slideY(
-                          begin: 0.1,
-                          end: 0,
-                          delay: 60.ms,
-                          duration: 380.ms,
-                          curve: Curves.easeOutCubic,
-                        ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Continue with your body stats or start the short setup again.',
-                      style: AppText.bodySm(color: AppColors.mutedForeground),
-                    ).animate().fadeIn(delay: 120.ms, duration: 380.ms),
-                    const SizedBox(height: 16),
-                    Text(
-                      '$productName keeps partial answers on this device for 30 days.',
-                      style: AppText.caption(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            _BottomActionArea(
+      child: ColoredBox(
+        color: AppColors.highlight,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'Continue setup',
+                  style: AppText.bodySm(
+                    color: AppColors.primary,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ).animate().fadeIn(duration: 380.ms),
+                const SizedBox(height: 8),
+                Text(
+                      'Your setup is still here.',
+                      style: AppText.headline(36, height: 34, color: AppColors.primary),
+                    )
+                    .animate()
+                    .fadeIn(delay: 60.ms, duration: 380.ms)
+                    .slideY(
+                      begin: 0.1,
+                      end: 0,
+                      delay: 60.ms,
+                      duration: 380.ms,
+                      curve: Curves.easeOutCubic,
+                    ),
+                const SizedBox(height: 12),
+                Text(
+                  'Continue with your body stats or start the short setup again.',
+                  style: AppText.bodySm(color: AppColors.textSecondary),
+                ).animate().fadeIn(delay: 120.ms, duration: 380.ms),
+                const SizedBox(height: 24),
                 _PillButton(
                   label: 'Continue setup',
                   onPressed: () {
@@ -1527,9 +1686,17 @@ class OnboardingResumeScreen extends StatelessWidget {
                     child: const Text('Start over'),
                   ),
                 ).animate().fadeIn(delay: 240.ms, duration: 380.ms),
+                const SizedBox(height: 12),
+                Center(
+                  child: Text(
+                    '$productName keeps partial answers on this device for 30 days.',
+                    textAlign: TextAlign.center,
+                    style: AppText.caption(color: AppColors.textSecondary),
+                  ),
+                ).animate().fadeIn(delay: 280.ms, duration: 380.ms),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -165,98 +165,78 @@ class _ForkThisMomentSheetState extends State<_ForkThisMomentSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.paddingOf(context).bottom;
     final width = math.min(MediaQuery.sizeOf(context).width - 16, 430.0);
-    return SafeArea(
-      top: false,
-      child: Container(
-        width: width,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        clipBehavior: Clip.antiAlias,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
+    // The card's own background must reach the true bottom edge — SafeArea
+    // goes *inside* the decorated Container, around the content only, so
+    // there's no gap of scrim/backdrop showing beneath the sheet above the
+    // home indicator.
+    return Container(
+      width: width,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              children: [
-                SizedBox(
-                  height: 184,
-                  width: double.infinity,
-                  child: Image.asset(
-                    'assets/images/figma/forkthis-moment-sheet-bg.png',
-                    fit: BoxFit.cover,
-                    alignment: Alignment.centerRight,
-                  ),
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          AppColors.highlight.withValues(alpha: 0.96),
-                          AppColors.highlight.withValues(alpha: 0.72),
-                          AppColors.highlight.withValues(alpha: 0.08),
-                        ],
+            // Redesigned per Figma 8.1 Moment Sheet (node 790:20761): a flat
+            // primary-red band instead of a photo + gradient scrim, with the
+            // kicker pill inverted (white on red, was red on white).
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 12, 16, 18),
+              decoration: const BoxDecoration(color: AppColors.primary),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryForeground.withValues(
+                          alpha: 0.24,
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
                       ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 16, 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
-                        child: Container(
-                          width: 42,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.24),
-                            borderRadius: BorderRadius.circular(AppRadius.pill),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                        ),
-                        child: Text(
-                          productMomentLabel.toUpperCase(),
-                          style: AppText.kicker(
-                            color: AppColors.primaryForeground,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 270),
-                        child: Text(
-                          'What kind of moment is this?',
-                          style: AppText.headline(
-                            34,
-                            height: 34,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 28),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryForeground,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      productMomentLabel.toUpperCase(),
+                      style: AppText.kicker(color: AppColors.primary),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 280),
+                    child: Text(
+                      'What kind of moment is this?',
+                      style: AppText.headline(
+                        34,
+                        height: 34,
+                        color: AppColors.primaryForeground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             Flexible(
               child: ListView(
@@ -280,7 +260,7 @@ class _ForkThisMomentSheetState extends State<_ForkThisMomentSheet> {
               ),
             ),
             Container(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottom),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               decoration: const BoxDecoration(
                 color: AppColors.card,
                 border: Border(top: BorderSide(color: AppColors.border)),
@@ -331,8 +311,11 @@ class _InteractiveMomentCard extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
+      // Selected state is a uniform accent-yellow + red border regardless of
+      // the moment's own tone (Figma 8.1: MomentCard/Selected), so the
+      // "this one's picked" signal reads the same across all five cards.
       decoration: BoxDecoration(
-        color: selected ? moment.tone : AppColors.card,
+        color: selected ? AppColors.accent : AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(
           color: selected ? AppColors.primary : AppColors.border,

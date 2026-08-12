@@ -10,13 +10,13 @@ import '../theme/text_styles.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_shell.dart';
 import '../widgets/figma_components.dart';
-import '../widgets/forkthis_moments.dart';
 import '../widgets/guided_experience.dart';
 
-/// Restyled against Figma node 321:473 ("2.1 Home – Dashboard"),
-/// `figma.com/design/LjDp489aFZaYiDx88MvvkQ`, pulled 2026-08-06. Layout order
-/// and copy follow that node; app data (fast hacks, AppState) is unchanged —
-/// only presentation moved.
+/// Restyled against Figma node 790:18213 ("4.1 Home – Dashboard"),
+/// `figma.com/design/LjDp489aFZaYiDx88MvvkQ`, pulled 2026-08-11 (the file's
+/// sections were renumbered since this was last synced — was node 321:473
+/// / "2.1 Home – Dashboard"). Layout order and copy follow that node; app
+/// data (fast hacks, AppState) is unchanged — only presentation moved.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -100,7 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: _ForkThisHero(
                         points: state.momentumPoints,
                         protein: protein,
-                        onStart: () => openForkThisMomentSearchSheet(context),
                         onExactOrder: () =>
                             context.push('/hack/${featured.id}'),
                       ),
@@ -291,13 +290,11 @@ class _Header extends StatelessWidget {
 class _ForkThisHero extends StatelessWidget {
   final int points;
   final int protein;
-  final VoidCallback onStart;
   final VoidCallback onExactOrder;
 
   const _ForkThisHero({
     required this.points,
     required this.protein,
-    required this.onStart,
     required this.onExactOrder,
   });
 
@@ -362,26 +359,16 @@ class _ForkThisHero extends StatelessWidget {
                 const Spacer(),
                 Row(
                   children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 52,
-                        child: _HeroStartButton(onTap: onStart),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
                     _HeroMetric(value: '$points', label: 'points'),
                     const SizedBox(width: 8),
                     _HeroMetric(value: '${protein}g', label: 'protein'),
                   ],
                 ),
-                TextButton(
-                  onPressed: onExactOrder,
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primaryForeground,
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(0, 44),
-                  ),
-                  child: const Text("See today's exact order"),
+                const SizedBox(height: 14),
+                SizedBox(
+                  height: 52,
+                  width: double.infinity,
+                  child: _HeroOrderButton(onTap: onExactOrder),
                 ),
               ],
             ),
@@ -437,10 +424,13 @@ class _WarmRedHalftonePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _HeroStartButton extends StatelessWidget {
+/// The hero's single CTA (Figma 4.1 Home – Dashboard, node 790:18213: "See
+/// today's order →") — replaces what used to be a split "Start" pill next to
+/// a separate "See today's exact order" text link below the card.
+class _HeroOrderButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _HeroStartButton({required this.onTap});
+  const _HeroOrderButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -449,7 +439,7 @@ class _HeroStartButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadius.pill),
       child: Container(
         height: 52,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: AppColors.accent,
           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -460,7 +450,7 @@ class _HeroStartButton extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                'Start',
+                "See today's order",
                 style: AppText.button(color: AppColors.textPrimary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

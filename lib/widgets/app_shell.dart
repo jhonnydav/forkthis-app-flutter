@@ -7,6 +7,7 @@ import '../state/app_state.dart';
 import '../theme/tokens.dart';
 import '../theme/text_styles.dart';
 import 'app_notifications.dart';
+import 'brand_logo.dart';
 import 'forkthis_moments.dart';
 
 class _TabDef {
@@ -742,17 +743,11 @@ class _ScrollTopBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    'F!',
-                    style: AppText.h3(color: AppColors.primaryForeground),
+                const BrandLogo(
+                  size: 46,
+                  variant: BrandLogoVariant.whiteOnRed,
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(AppRadius.pill),
                   ),
                 ),
                 const SizedBox(width: 12),
